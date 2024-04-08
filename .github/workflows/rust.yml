@@ -1,0 +1,99 @@
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+
+name: Check, Test, and Format
+
+jobs:
+  check:
+    name: Check
+    runs-on: lg-prover-32CPU
+    steps:
+      - run: sudo apt-get update && sudo apt-get install -yq pkg-config libssl-dev
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ~1.20
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2024-02-01
+          override: true
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+  test:
+    name: Test Suite
+    runs-on: lg-prover-32CPU
+    steps:
+      - run: |
+          sudo add-apt-repository ppa:ethereum/ethereum
+          sudo apt-get update
+          sudo apt-get install -yq pkg-config libssl-dev solc
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ~1.20
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2024-02-01
+          override: true
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: "--all --release -- --test-threads 32"
+        env: 
+          CI_RPC_URL: ${{ secrets.CI_RPC_URL }}
+
+  fmt:
+    name: Rustfmt
+    runs-on: lg-prover-32CPU
+    steps:
+      - run: sudo apt-get update && sudo apt-get install -yq pkg-config libssl-dev
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ~1.20
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2024-02-01
+          override: true
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: rustup component add rustfmt
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
