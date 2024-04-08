@@ -1,7 +1,8 @@
 # Lagrange Database Codebase for Euclid testnet
 
 This repository contains the code logic supporting the Euclid testnet. Specifically it contains the code to extract the information from the 
-blockchain and turn it into a zk friendly database. 
+blockchain and turn it into a zk friendly database. This step is called the "preprocessing" phase, or indexing. 
+
 
 ## Entry point in the codebase
 
