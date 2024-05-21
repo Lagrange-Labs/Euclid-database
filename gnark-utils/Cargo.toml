@@ -1,0 +1,12 @@
+[package]
+name = "gnark-utils"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+glob.workspace = true
+gobuild.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+base64.workspace = true

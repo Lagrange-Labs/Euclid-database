@@ -1,0 +1,32 @@
+[package]
+name = "groth16_framework"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+bytes.workspace = true
+ethereum-types.workspace = true
+ethers.workspace = true
+hex.workspace = true
+log.workspace = true
+plonky2.workspace = true
+plonky2x.workspace = true
+revm.workspace = true
+rlp.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha3.workspace = true
+
+gnark-utils = { path = "../gnark-utils" }
+mr_plonky2_circuits = { path = "../mr-plonky2-circuits" }
+recursion_framework = { path = "../recursion-framework" }
+
+[dev-dependencies]
+env_logger.workspace = true
+itertools.workspace = true
+plonky2_ecgfp5.workspace = true
+rand.workspace = true
+serial_test.workspace = true
+
+mrp2_utils = { path = "../mrp2-utils" }
