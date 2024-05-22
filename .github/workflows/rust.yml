@@ -38,10 +38,6 @@ jobs:
     name: Test Suite
     runs-on: nix-128g
     steps:
-      - run: |
-          sudo add-apt-repository ppa:ethereum/ethereum
-          sudo apt-get update
-          sudo apt-get install -yq pkg-config libssl-dev solc
       - name: Checkout sources
         uses: actions/checkout@v2
       - uses: actions/setup-go@v3
