@@ -36,7 +36,7 @@ jobs:
           command: check
   test:
     name: Test Suite
-    runs-on: ubuntu-latest
+    runs-on: nix-128
     steps:
       - run: |
           sudo add-apt-repository ppa:ethereum/ethereum
