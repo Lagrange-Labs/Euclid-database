@@ -41,7 +41,7 @@ use super::{
     block::{BlockPublicInputs, BLOCK_CIRCUIT_SET_SIZE},
     PackedSCAddress,
 };
-use anyhow::Result;
+use anyhow::{bail, Result};
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -337,17 +337,29 @@ pub struct CircuitInput {
 }
 
 impl CircuitInput {
+    /// Creates a new input struct holding all the inputs to prove membership in
+    /// the state db of lagrange
     pub fn new(
         smart_contract_address: Address,
         mapping_slot: u32,
         length_slot: u32,
         block_number: u32,
         depth: u32,
-        siblings: &[HashOutput; MAX_DEPTH],
-        positions: &[bool; MAX_DEPTH],
+        siblings: &[HashOutput],
+        positions: &[bool],
         block_hash: HashOutput,
         storage_proof: Vec<u8>,
     ) -> Result<Self> {
+        if siblings.len() != positions.len() {
+            bail!("siblings and positions vector differ in length");
+        }
+        if siblings.len() > MAX_DEPTH {
+            bail!(
+                "merkle path array can not be more than {MAX_DEPTH} long (currently {} long)",
+                siblings.len()
+            );
+        }
+
         let smart_contract_address =
             PackedSCAddress::try_from(smart_contract_address.as_bytes().pack().to_fields())?;
         let mapping_slot = F::from_canonical_u32(mapping_slot);
