@@ -259,7 +259,7 @@ pub(crate) struct StateRecursiveWires<const MAX_DEPTH: usize> {
 const NUM_STORAGE_INPUTS: usize = StorageInputs::<Target>::TOTAL_LEN;
 const NUM_IO: usize = BlockPublicInputs::<Target>::total_len();
 //ToDo: decide if we want it as a const generic parameter
-const MAX_DEPTH: usize = 0;
+const MAX_DEPTH: usize = 5;
 
 impl CircuitLogicWires<F, D, 0> for StateRecursiveWires<MAX_DEPTH> {
     type CircuitBuilderParams = RecursiveCircuitsVerifierGagdet<F, C, D, NUM_STORAGE_INPUTS>;
