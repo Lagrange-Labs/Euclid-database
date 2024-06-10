@@ -6,7 +6,7 @@ use itertools::Itertools;
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::{
-        hash_types::{HashOut, RichField},
+        hash_types::{HashOut, HashOutTarget, RichField},
         merkle_proofs::MerkleProofTarget,
         poseidon::PoseidonHash,
     },
@@ -120,6 +120,7 @@ pub struct StateCircuit<const MAX_DEPTH: usize, F: RichField> {
     length_slot: F,
     block_number: F,
     depth: F,
+    // these vectors can be any length between 1 and MAX_DEPTH
     siblings: Vec<HashOut<F>>,
     positions: Vec<bool>,
     block_hash: Array<F, PACKED_HASH_LEN>,
@@ -137,6 +138,17 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
         positions: Vec<bool>,
         block_hash: Array<F, PACKED_HASH_LEN>,
     ) -> Self {
+        assert_eq!(
+            siblings.len(),
+            positions.len(),
+            "siblings and positions vector have different lens"
+        );
+        // FIX that in future PR - we don't need a depth argument
+        assert_eq!(
+            depth.to_canonical_u64() as usize,
+            siblings.len(),
+            "depth value should be different"
+        );
         Self {
             smart_contract_address,
             mapping_slot,
@@ -224,20 +236,26 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
         pw.set_target(wires.mapping_slot, self.mapping_slot);
         pw.set_target(wires.length_slot, self.length_slot);
         pw.set_target(wires.block_number, self.block_number);
+        // make sure we always assign all the potential values
+        // the depth is handled in the "self.depth" assignement above.
+        let mut siblings = self.siblings.clone();
+        siblings.resize(MAX_DEPTH, self.siblings.last().cloned().unwrap());
+        let mut positions = self.positions.clone();
+        positions.resize(MAX_DEPTH, false);
 
         wires
             .siblings
             .siblings
             .iter()
             .flat_map(|s| s.elements.iter())
-            .zip(self.siblings.iter().flat_map(|s| s.elements.iter()))
+            .zip(siblings.iter().flat_map(|s| s.elements.iter()))
             .for_each(|(&w, &v)| pw.set_target(w, v));
 
         wires
             .positions
             .iter()
             .map(|p| p.target)
-            .zip(self.positions.iter())
+            .zip(positions.iter())
             .for_each(|(w, &v)| pw.set_target(w, F::from_bool(v)));
 
         wires
