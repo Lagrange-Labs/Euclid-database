@@ -3,6 +3,7 @@ use std::iter;
 
 use ethers::types::Address;
 use itertools::Itertools;
+use mrp2_utils::types::PackedSCAddress;
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::{
@@ -32,14 +33,13 @@ use crate::{
     array::Array,
     keccak::{OutputHash, PACKED_HASH_LEN},
     merkle_tree::StateTreeWires,
-    query2::storage::public_inputs::PublicInputs as StorageInputs,
+    query_erc20::storage::public_inputs::PublicInputs as StorageInputs,
     types::{HashOutput, PackedAddressTarget as PackedSCAddressTarget},
     utils::{Packer, ToFields},
 };
 
 use super::block::{BlockPublicInputs, BLOCK_CIRCUIT_SET_SIZE};
 use anyhow::Result;
-use mrp2_utils::types::PackedSCAddress;
 
 #[cfg(test)]
 pub(crate) mod tests;

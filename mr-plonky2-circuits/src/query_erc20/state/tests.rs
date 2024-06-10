@@ -1,5 +1,5 @@
 use crate::utils::{Packer, ToFields};
-use crate::{query2::state::CircuitInputsInternal, types::MAPPING_KEY_LEN};
+use crate::{query_erc20::state::CircuitInputsInternal, types::MAPPING_KEY_LEN};
 use std::iter;
 
 use ethers::types::Address;
@@ -20,7 +20,9 @@ use serial_test::serial;
 use super::StateWires;
 use crate::{
     array::Array,
-    query2::{block::BlockPublicInputs, storage::public_inputs::PublicInputs as StorageInputs},
+    query_erc20::{
+        block::BlockPublicInputs, storage::public_inputs::PublicInputs as StorageInputs,
+    },
 };
 use mrp2_utils::types::PackedSCAddress;
 
