@@ -14,7 +14,7 @@ use crate::{
 };
 use anyhow::Result;
 use plonky2::{
-    field::goldilocks_field::GoldilocksField,
+    field::{goldilocks_field::GoldilocksField, types::Field},
     iop::{
         target::Target,
         witness::{PartialWitness, WitnessWrite},
@@ -35,6 +35,8 @@ use recursion_framework::{
 };
 use serde::{Deserialize, Serialize};
 use std::array;
+
+const MAGIC_SLOT: usize = 0x123456789;
 /// This is a wrapper around an array of targets set as public inputs of any
 /// proof generated in this module. They all share the same structure.
 /// `D` Digest of the all mapping values
@@ -111,6 +113,7 @@ impl LengthMatchCircuit {
         length_pi: &[Target],
         mapping_pi: &[Target],
     ) {
+        let true_ = cb._true();
         let length_pi = LengthPublicInputs::from(length_pi);
         let mapping_pi = MappingPublicInputs::from(mapping_pi);
 
@@ -127,7 +130,11 @@ impl LengthMatchCircuit {
         // Constrain the entry lengths are equal.
         let length_value = length_pi.length_value();
         let n = mapping_pi.n();
-        cb.connect(length_value, n);
+        let length_equal = cb.is_equal(length_value, n);
+        let magic_slot = cb.constant(GoldilocksField::from_canonical_usize(MAGIC_SLOT));
+        let is_magic_slot = cb.is_equal(magic_slot, length_slot);
+        let should_be_true = cb.select(is_magic_slot, true_.target, length_equal.target);
+        cb.connect(should_be_true, true_.target);
 
         // Constrain the MPT root hashes are same.
         let length_root_hash = length_pi.root_hash();
@@ -283,6 +290,24 @@ mod tests {
 
         let mut rng = thread_rng();
         let length_value = F::from_canonical_u64(rng.gen::<u64>());
+        let mpt_root_hash: [F; PACKED_HASH_LEN] =
+            array::from_fn(|_| F::from_canonical_u32(rng.gen::<u32>()));
+
+        let length_pi = generate_length_public_inputs(length_value, &mpt_root_hash);
+        let mapping_pi = generate_mapping_public_inputs(length_value, &mpt_root_hash);
+
+        let test_circuit = TestCircuit {
+            length_pi,
+            mapping_pi,
+        };
+        run_circuit::<F, D, C, _>(test_circuit);
+    }
+    #[test]
+    fn test_length_match_circuit_magic() {
+        init_logging();
+
+        let mut rng = thread_rng();
+        let length_value = F::from_canonical_usize(MAGIC_SLOT);
         let mpt_root_hash: [F; PACKED_HASH_LEN] =
             array::from_fn(|_| F::from_canonical_u32(rng.gen::<u32>()));
 
