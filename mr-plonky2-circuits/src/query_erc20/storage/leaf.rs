@@ -13,7 +13,7 @@ use plonky2::{
 use recursion_framework::circuit_builder::CircuitLogicWires;
 use serde::{Deserialize, Serialize};
 
-const HASH_PREFIX: &[u8] = b"LEAF";
+pub(crate) const HASH_PREFIX: &[u8] = b"LEAF";
 
 #[derive(Serialize, Deserialize)]
 pub struct LeafWires {
