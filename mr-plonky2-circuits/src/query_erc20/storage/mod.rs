@@ -24,6 +24,8 @@ use self::{
 mod inner;
 mod leaf;
 pub mod public_inputs;
+#[cfg(test)]
+mod tests;
 
 pub enum CircuitInput {
     Leaf(LeafCircuit),
@@ -55,7 +57,7 @@ impl CircuitInput {
     }
 }
 
-const STORAGE_CIRCUIT_SET_SIZE: usize = 3;
+const STORAGE_CIRCUIT_SET_SIZE: usize = 2;
 const NUM_IO: usize = PublicInputs::<GoldilocksField>::TOTAL_LEN;
 
 #[derive(Serialize, Deserialize)]
@@ -96,12 +98,12 @@ impl Parameters {
                     vk: self.leaf_circuit.get_verifier_data().clone(),
                 }
             }
-            CircuitInput::Inner(partial_inner, inner) => {
+            CircuitInput::Inner(inner, child) => {
                 let proof = self.set.generate_proof(
                     &self.inner_node_circuit,
-                    [inner.proof],
-                    [&inner.vk],
-                    partial_inner,
+                    [child.proof],
+                    [&child.vk],
+                    inner,
                 )?;
 
                 ProofWithVK {

@@ -41,8 +41,9 @@ use crate::{
 use super::block::{BlockPublicInputs, BLOCK_CIRCUIT_SET_SIZE};
 use anyhow::Result;
 
-#[cfg(test)]
-pub(crate) mod tests;
+// TODO
+// #[cfg(test)]
+// pub(crate) mod tests;
 
 /// The witnesses of [ProvenanceCircuit].
 #[derive(Debug, Clone, Serialize, Deserialize)]

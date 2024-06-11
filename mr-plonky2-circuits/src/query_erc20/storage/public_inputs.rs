@@ -1,27 +1,14 @@
 use crate::types::{PackedAddressTarget, PackedU256Target, PACKED_ADDRESS_LEN, PACKED_U256_LEN};
-use itertools::Itertools;
+use crate::utils::convert_u32_fields_to_u8_vec;
+use ethers::prelude::{Address, U256};
 use plonky2::{
-    field::{
-        extension::{quintic::QuinticExtension, FieldExtension},
-        goldilocks_field::GoldilocksField,
-        types::Field,
-    },
+    field::goldilocks_field::GoldilocksField,
     hash::hash_types::{HashOut, HashOutTarget, NUM_HASH_OUT_ELTS},
     iop::target::Target,
     plonk::circuit_builder::CircuitBuilder,
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
-use plonky2_ecgfp5::{
-    curve::curve::WeierstrassPoint,
-    gadgets::curve::{CircuitBuilderEcGFp5, CurveTarget},
-};
 use std::array::from_fn;
-
-use crate::{
-    storage::CURVE_TARGET_SIZE,
-    types::{PackedValueTarget, PACKED_VALUE_LEN},
-    utils::{convert_point_to_curve_target, convert_slice_to_curve_point},
-};
 
 /// The public inputs required for the storage proof of query ERC20
 ///   - C ([4]F): hash of the subtree (NUM_HASH_OUT_ELTS)
@@ -82,6 +69,15 @@ impl<'a, T: Clone + Copy> PublicInputs<'a, T> {
     pub(crate) fn c_raw(&self) -> &[T] {
         &self.inputs[Self::C_OFFSET..Self::C_OFFSET + Self::C_LEN]
     }
+    pub(crate) fn x_raw(&self) -> &[T] {
+        &self.inputs[Self::X_OFFSET..Self::X_OFFSET + Self::X_LEN]
+    }
+    pub(crate) fn v_raw(&self) -> &[T] {
+        &self.inputs[Self::V_OFFSET..Self::V_OFFSET + Self::V_LEN]
+    }
+    pub(crate) fn r_raw(&self) -> &[T] {
+        &self.inputs[Self::R_OFFSET..Self::R_OFFSET + Self::R_LEN]
+    }
 }
 
 impl<'a> PublicInputs<'a, Target> {
@@ -102,5 +98,14 @@ impl<'a> PublicInputs<'a, Target> {
 impl<'a> PublicInputs<'a, GoldilocksField> {
     pub fn c(&self) -> HashOut<GoldilocksField> {
         HashOut::from_vec(self.c_raw().to_owned())
+    }
+    pub fn x(&self) -> Address {
+        Address::from_slice(&convert_u32_fields_to_u8_vec(self.x_raw()))
+    }
+    pub fn v(&self) -> U256 {
+        U256::from_little_endian(&convert_u32_fields_to_u8_vec(self.v_raw()))
+    }
+    pub fn r(&self) -> U256 {
+        U256::from_little_endian(&convert_u32_fields_to_u8_vec(self.r_raw()))
     }
 }

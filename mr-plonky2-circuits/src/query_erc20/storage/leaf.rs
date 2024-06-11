@@ -68,11 +68,11 @@ impl LeafCircuit {
             .collect();
         let c = b.hash_n_to_hash_no_pad::<PoseidonHash>(inputs);
 
-        // X = R * value / totalSupply
+        // V = R * value / totalSupply
         // TODO: U256 operations
-        let x = &reward;
+        let v = &reward;
 
-        PublicInputs::<GoldilocksField>::register(b, &c, &address, x, &reward);
+        PublicInputs::<GoldilocksField>::register(b, &c, &address, v, &reward);
 
         LeafWires {
             address,
@@ -104,23 +104,5 @@ impl CircuitLogicWires<GoldilocksField, 2, 0> for LeafWires {
     ) -> anyhow::Result<()> {
         inputs.assign(pw, self);
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use mrp2_test_utils::circuit::UserCircuit;
-
-    impl UserCircuit<GoldilocksField, 2> for LeafCircuit {
-        type Wires = LeafWires;
-
-        fn build(b: &mut CircuitBuilder<GoldilocksField, 2>) -> Self::Wires {
-            LeafCircuit::build(b)
-        }
-
-        fn prove(&self, pw: &mut PartialWitness<GoldilocksField>, wires: &Self::Wires) {
-            self.assign(pw, wires);
-        }
     }
 }
