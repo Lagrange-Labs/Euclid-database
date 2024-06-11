@@ -6,7 +6,7 @@ use itertools::Itertools;
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::{
-        hash_types::{HashOut, RichField},
+        hash_types::{HashOut, HashOutTarget, RichField},
         merkle_proofs::MerkleProofTarget,
         poseidon::PoseidonHash,
     },
@@ -38,7 +38,7 @@ use crate::{
 };
 
 use super::block::{BlockPublicInputs, BLOCK_CIRCUIT_SET_SIZE};
-use anyhow::Result;
+use anyhow::{bail, Result};
 use mrp2_utils::types::PackedSCAddress;
 
 #[cfg(test)]
@@ -118,6 +118,7 @@ pub struct StateCircuit<const MAX_DEPTH: usize, F: RichField> {
     length_slot: F,
     block_number: F,
     depth: F,
+    // these vectors can be any length between 1 and MAX_DEPTH
     siblings: Vec<HashOut<F>>,
     positions: Vec<bool>,
     block_hash: Array<F, PACKED_HASH_LEN>,
@@ -135,6 +136,17 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
         positions: Vec<bool>,
         block_hash: Array<F, PACKED_HASH_LEN>,
     ) -> Self {
+        assert_eq!(
+            siblings.len(),
+            positions.len(),
+            "siblings and positions vector have different lens"
+        );
+        // FIX that in future PR - we don't need a depth argument
+        assert_eq!(
+            depth.to_canonical_u64() as usize,
+            siblings.len(),
+            "depth value should be different"
+        );
         Self {
             smart_contract_address,
             mapping_slot,
@@ -222,20 +234,26 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
         pw.set_target(wires.mapping_slot, self.mapping_slot);
         pw.set_target(wires.length_slot, self.length_slot);
         pw.set_target(wires.block_number, self.block_number);
+        // make sure we always assign all the potential values
+        // the depth is handled in the "self.depth" assignement above.
+        let mut siblings = self.siblings.clone();
+        siblings.resize(MAX_DEPTH, self.siblings.last().cloned().unwrap());
+        let mut positions = self.positions.clone();
+        positions.resize(MAX_DEPTH, false);
 
         wires
             .siblings
             .siblings
             .iter()
             .flat_map(|s| s.elements.iter())
-            .zip(self.siblings.iter().flat_map(|s| s.elements.iter()))
+            .zip(siblings.iter().flat_map(|s| s.elements.iter()))
             .for_each(|(&w, &v)| pw.set_target(w, v));
 
         wires
             .positions
             .iter()
             .map(|p| p.target)
-            .zip(self.positions.iter())
+            .zip(positions.iter())
             .for_each(|(w, &v)| pw.set_target(w, F::from_bool(v)));
 
         wires
@@ -257,7 +275,7 @@ pub(crate) struct StateRecursiveWires<const MAX_DEPTH: usize> {
 const NUM_STORAGE_INPUTS: usize = StorageInputs::<Target>::TOTAL_LEN;
 const NUM_IO: usize = BlockPublicInputs::<Target>::total_len();
 //ToDo: decide if we want it as a const generic parameter
-const MAX_DEPTH: usize = 0;
+const MAX_DEPTH: usize = 5;
 
 impl CircuitLogicWires<F, D, 0> for StateRecursiveWires<MAX_DEPTH> {
     type CircuitBuilderParams = RecursiveCircuitsVerifierGagdet<F, C, D, NUM_STORAGE_INPUTS>;
@@ -335,17 +353,29 @@ pub struct CircuitInput {
 }
 
 impl CircuitInput {
+    /// Creates a new input struct holding all the inputs to prove membership in
+    /// the state db of lagrange
     pub fn new(
         smart_contract_address: Address,
         mapping_slot: u32,
         length_slot: u32,
         block_number: u32,
         depth: u32,
-        siblings: &[HashOutput; MAX_DEPTH],
-        positions: &[bool; MAX_DEPTH],
+        siblings: &[HashOutput],
+        positions: &[bool],
         block_hash: HashOutput,
         storage_proof: Vec<u8>,
     ) -> Result<Self> {
+        if siblings.len() != positions.len() {
+            bail!("siblings and positions vector differ in length");
+        }
+        if siblings.len() > MAX_DEPTH {
+            bail!(
+                "merkle path array can not be more than {MAX_DEPTH} long (currently {} long)",
+                siblings.len()
+            );
+        }
+
         let smart_contract_address =
             PackedSCAddress::try_from(smart_contract_address.as_bytes().pack().to_fields())?;
         let mapping_slot = F::from_canonical_u32(mapping_slot);

@@ -1,5 +1,7 @@
 //! A state tree Merkle opening with internal variable depth.
 
+use std::array::from_fn as create_array;
+
 use plonky2::{
     field::extension::Extendable,
     hash::{
@@ -13,7 +15,10 @@ use plonky2::{
     },
     plonk::circuit_builder::CircuitBuilder,
 };
-use recursion_framework::serialization::{deserialize, serialize};
+use recursion_framework::serialization::{
+    deserialize, deserialize_array, deserialize_long_array, serialize, serialize_array,
+    serialize_long_array,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::poseidon::hash_maybe_swap;
@@ -28,8 +33,11 @@ use crate::poseidon::hash_maybe_swap;
 pub struct StateTreeWires<const MAX_DEPTH: usize> {
     /// A set of flags that will be `true` for the corresponding depth that should compute the
     /// Merkle root as a hash permutation. If `false`, the circuit will repeat the previous hash.
-    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
-    pub is_value: Vec<BoolTarget>,
+    #[serde(
+        serialize_with = "serialize_array",
+        deserialize_with = "deserialize_array"
+    )]
+    pub is_value: [BoolTarget; MAX_DEPTH],
     /// The Merkle root at the variable depth.
     #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
     pub root: HashOutTarget,
@@ -67,9 +75,7 @@ impl<const MAX_DEPTH: usize> StateTreeWires<MAX_DEPTH> {
 
         let depth = cb.add_virtual_target();
         let mut positions = positions.to_vec();
-        let is_value: Vec<_> = (0..MAX_DEPTH)
-            .map(|_| cb.add_virtual_bool_target_safe())
-            .collect();
+        let is_value: [BoolTarget; MAX_DEPTH] = create_array(|_| cb.add_virtual_bool_target_safe());
 
         while positions.len() < MAX_DEPTH {
             positions.push(cb.add_virtual_bool_target_safe());
