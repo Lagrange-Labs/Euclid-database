@@ -187,6 +187,7 @@ fn test_storage_api() {
         .circuit_data()
         .verify(ProofWithVK::deserialize(&leaf).unwrap().proof)
         .unwrap();
+
     let unproved_hash = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(
         &rng.gen::<[u8; 16]>().map(F::from_canonical_u8),
     )
