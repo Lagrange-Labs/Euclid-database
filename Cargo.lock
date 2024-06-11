@@ -2702,6 +2702,7 @@ dependencies = [
  "rlp",
  "rmp-serde",
  "serde",
+ "serde_arrays",
  "serde_json",
  "serial_test",
  "sha3",
