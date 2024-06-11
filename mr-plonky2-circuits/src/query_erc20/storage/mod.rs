@@ -1,7 +1,8 @@
-//! The module implementing the required mechanisms for ‶Query 2″
-//! https://www.notion.so/lagrangelabs/Cryptographic-Documentation-85adb821f18647b2a3dc65efbe144981?pvs=4#fa3f5d23a7724d0699a04f72bbec2a16
+//! The module implementing the required mechanisms for Query ERC20
+//! https://www.notion.so/lagrangelabs/Cryptographic-Documentation-85adb821f18647b2a3dc65efbe144981?pvs=4#5776936f0833485ab9c7e27dcd277c91
 
 use anyhow::Result;
+use ethers::prelude::{Address, U256};
 use plonky2::{
     field::goldilocks_field::GoldilocksField, hash::hash_types::HashOut,
     plonk::config::GenericHashOut,
@@ -12,37 +13,30 @@ use recursion_framework::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    api::{default_config, ProofWithVK, C, D, F},
-    eth::left_pad32,
-    utils::convert_u8_to_u32_slice,
-};
+use crate::api::{default_config, ProofWithVK, C, D, F};
 
 use self::{
-    full_inner::{FullInnerNodeCircuit, FullInnerNodeWires},
+    inner::{InnerNodeCircuit, InnerNodeWires},
     leaf::{LeafCircuit, LeafWires},
-    partial_inner::{PartialInnerNodeCircuit, PartialInnerNodeWires},
     public_inputs::PublicInputs,
 };
 
-mod full_inner;
+mod inner;
 mod leaf;
-mod partial_inner;
 pub mod public_inputs;
 
 pub enum CircuitInput {
     Leaf(LeafCircuit),
-    PartialInner(PartialInnerNodeCircuit, ProofWithVK),
-    FullInner((ProofWithVK, ProofWithVK)),
+    Inner(InnerNodeCircuit, ProofWithVK),
 }
 
 impl CircuitInput {
-    pub fn new_leaf(mapping_key: &[u8], mapping_value: &[u8]) -> Self {
-        let mk = convert_u8_to_u32_slice(&left_pad32(mapping_key));
-        let mv = convert_u8_to_u32_slice(&left_pad32(mapping_value));
+    pub fn new_leaf(address: Address, value: U256, total_supply: U256, reward: U256) -> Self {
         CircuitInput::Leaf(LeafCircuit {
-            mapping_key: mk.try_into().unwrap(),
-            mapping_value: mv.try_into().unwrap(),
+            address,
+            value,
+            total_supply,
+            reward,
         })
     }
 
@@ -59,12 +53,6 @@ impl CircuitInput {
             proof,
         )
     }
-
-    pub fn new_full_node(left_proof: &[u8], right_proof: &[u8]) -> Self {
-        let left = ProofWithVK::deserialize(left_proof).expect("unable to deserialize proof");
-        let right = ProofWithVK::deserialize(right_proof).expect("unable to deserialize proof");
-        CircuitInput::FullInner((left, right))
-    }
 }
 
 const STORAGE_CIRCUIT_SET_SIZE: usize = 3;
@@ -73,8 +61,7 @@ const NUM_IO: usize = PublicInputs::<GoldilocksField>::TOTAL_LEN;
 #[derive(Serialize, Deserialize)]
 pub struct Parameters {
     leaf_circuit: CircuitWithUniversalVerifier<F, C, D, 0, LeafWires>,
-    partial_node_circuit: CircuitWithUniversalVerifier<F, C, D, 1, PartialInnerNodeWires>,
-    full_node_circuit: CircuitWithUniversalVerifier<F, C, D, 2, FullInnerNodeWires>,
+    inner_node_circuit: CircuitWithUniversalVerifier<F, C, D, 1, InnerNodeWires>,
     set: RecursiveCircuits<F, C, D>,
 }
 
@@ -86,19 +73,16 @@ impl Parameters {
             STORAGE_CIRCUIT_SET_SIZE,
         );
         let leaf_circuit = circuit_builder.build_circuit::<C, 0, LeafWires>(());
-        let partial_node_circuit = circuit_builder.build_circuit::<C, 1, PartialInnerNodeWires>(());
-        let full_node_circuit = circuit_builder.build_circuit::<C, 2, FullInnerNodeWires>(());
+        let inner_node_circuit = circuit_builder.build_circuit::<C, 1, InnerNodeWires>(());
 
         let circuit_set = vec![
             leaf_circuit.get_verifier_data().circuit_digest,
-            partial_node_circuit.get_verifier_data().circuit_digest,
-            full_node_circuit.get_verifier_data().circuit_digest,
+            inner_node_circuit.get_verifier_data().circuit_digest,
         ];
 
         Self {
             leaf_circuit,
-            partial_node_circuit,
-            full_node_circuit,
+            inner_node_circuit,
             set: RecursiveCircuits::new_from_circuit_digests(circuit_set),
         }
     }
@@ -112,9 +96,9 @@ impl Parameters {
                     vk: self.leaf_circuit.get_verifier_data().clone(),
                 }
             }
-            CircuitInput::PartialInner(partial_inner, inner) => {
+            CircuitInput::Inner(partial_inner, inner) => {
                 let proof = self.set.generate_proof(
-                    &self.partial_node_circuit,
+                    &self.inner_node_circuit,
                     [inner.proof],
                     [&inner.vk],
                     partial_inner,
@@ -122,20 +106,7 @@ impl Parameters {
 
                 ProofWithVK {
                     proof,
-                    vk: self.partial_node_circuit.get_verifier_data().clone(),
-                }
-            }
-            CircuitInput::FullInner((left, right)) => {
-                let proof = self.set.generate_proof(
-                    &self.full_node_circuit,
-                    [left.proof, right.proof],
-                    [&left.vk, &right.vk],
-                    FullInnerNodeCircuit {},
-                )?;
-
-                ProofWithVK {
-                    proof,
-                    vk: self.full_node_circuit.get_verifier_data().clone(),
+                    vk: self.inner_node_circuit.get_verifier_data().clone(),
                 }
             }
         }
@@ -146,6 +117,3 @@ impl Parameters {
         &self.set
     }
 }
-
-#[cfg(test)]
-mod tests;

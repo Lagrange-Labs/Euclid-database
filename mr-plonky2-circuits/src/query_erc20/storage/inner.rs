@@ -1,4 +1,4 @@
-//! Mechanism for partially-recomputed inner node, i.e. only one child proof needs to be recomputed
+//! Mechanism for intermediate node, i.e. only one child proof needs to be recomputed
 
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
@@ -20,52 +20,55 @@ use crate::poseidon::hash_maybe_swap;
 use super::public_inputs::PublicInputs;
 
 #[derive(Serialize, Deserialize)]
-pub struct PartialInnerNodeWires {
-    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
-    unproved_hash: HashOutTarget,
+pub struct InnerNodeWires {
     #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
     proved_is_right: BoolTarget,
+    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
+    unproved_hash: HashOutTarget,
 }
 
 /// This circuit prove the root of the subtree made of:
 ///   - a child whose hash has not changes on the side defined by unproved_is_left
 ///   - another child whose hash has been updated.
 #[derive(Clone, Debug)]
-pub struct PartialInnerNodeCircuit {
+pub struct InnerNodeCircuit {
     pub proved_is_right: bool,
     pub unproved_hash: HashOut<GoldilocksField>,
 }
 
-impl PartialInnerNodeCircuit {
+impl InnerNodeCircuit {
     pub fn build(
         b: &mut CircuitBuilder<GoldilocksField, 2>,
         proved: &PublicInputs<Target>,
-    ) -> PartialInnerNodeWires {
+    ) -> InnerNodeWires {
         let unproved_hash = b.add_virtual_hash();
         let proved_is_right = b.add_virtual_bool_target_unsafe();
 
-        let root = hash_maybe_swap(
+        // C = if position = 0 ? poseidon(sibling_hash || p[C]) else poseidon(p[C] || sibling_hash)
+        let c = hash_maybe_swap(
             b,
-            &[proved.root().elements, unproved_hash.elements],
+            &[proved.c().elements, unproved_hash.elements],
             proved_is_right,
         );
-        PublicInputs::<Target>::register(b, &root, &proved.digest(), &proved.owner());
-        PartialInnerNodeWires {
+
+        PublicInputs::<Target>::register(b, &c, &proved.x(), &proved.v(), &proved.r());
+
+        InnerNodeWires {
             unproved_hash,
             proved_is_right,
         }
     }
 
-    pub fn assign(&self, pw: &mut PartialWitness<GoldilocksField>, wires: &PartialInnerNodeWires) {
+    pub fn assign(&self, pw: &mut PartialWitness<GoldilocksField>, wires: &InnerNodeWires) {
         pw.set_bool_target(wires.proved_is_right, self.proved_is_right);
         pw.set_hash_target(wires.unproved_hash, self.unproved_hash);
     }
 }
 
-impl CircuitLogicWires<GoldilocksField, 2, 1> for PartialInnerNodeWires {
+impl CircuitLogicWires<GoldilocksField, 2, 1> for InnerNodeWires {
     type CircuitBuilderParams = ();
 
-    type Inputs = PartialInnerNodeCircuit;
+    type Inputs = InnerNodeCircuit;
 
     const NUM_PUBLIC_INPUTS: usize = PublicInputs::<GoldilocksField>::TOTAL_LEN;
 
@@ -75,7 +78,7 @@ impl CircuitLogicWires<GoldilocksField, 2, 1> for PartialInnerNodeWires {
         _builder_parameters: Self::CircuitBuilderParams,
     ) -> Self {
         let inputs = PublicInputs::from_slice(Self::public_input_targets(verified_proofs[0]));
-        PartialInnerNodeCircuit::build(builder, &inputs)
+        InnerNodeCircuit::build(builder, &inputs)
     }
 
     fn assign_input(

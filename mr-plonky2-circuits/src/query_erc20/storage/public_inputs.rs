@@ -1,3 +1,4 @@
+use crate::types::{PackedAddressTarget, PackedU256Target, PACKED_ADDRESS_LEN, PACKED_U256_LEN};
 use itertools::Itertools;
 use plonky2::{
     field::{
@@ -14,6 +15,7 @@ use plonky2_ecgfp5::{
     curve::curve::WeierstrassPoint,
     gadgets::curve::{CircuitBuilderEcGFp5, CurveTarget},
 };
+use std::array::from_fn;
 
 use crate::{
     storage::CURVE_TARGET_SIZE,
@@ -21,10 +23,11 @@ use crate::{
     utils::{convert_point_to_curve_target, convert_slice_to_curve_point},
 };
 
-/// The public inputs required for the storage proof of query #2
-///   - hash of this subtree (NUM_HASH_OUT_ELTS);
-///   - digest of this subtree (CURVE_TARGET_GL_SIZE);
-///   - value (owner) forwarded bottom-up (PACKED_VALUE_LEN)
+/// The public inputs required for the storage proof of query ERC20
+///   - C ([4]F): hash of the subtree (NUM_HASH_OUT_ELTS)
+///   - X ([5]F): address of the query (H160)
+///   - V ([8]F): balance / total supply (U256)
+///   - R ([8]F): reward (U256)
 #[derive(Debug)]
 pub struct PublicInputs<'input, T: Clone> {
     pub inputs: &'input [T],
@@ -37,14 +40,16 @@ impl<'a, T: Clone + Copy> From<&'a [T]> for PublicInputs<'a, T> {
 }
 
 impl<'a, T: Clone + Copy> PublicInputs<'a, T> {
-    pub(crate) const ROOT_OFFSET: usize = 0;
-    pub(crate) const ROOT_LEN: usize = NUM_HASH_OUT_ELTS;
-    pub(crate) const DIGEST_OFFSET: usize = Self::ROOT_LEN;
-    pub(crate) const DIGEST_LEN: usize = CURVE_TARGET_SIZE;
-    pub(crate) const OWNER_OFFSET: usize = Self::ROOT_LEN + Self::DIGEST_LEN;
-    pub(crate) const OWNER_LEN: usize = PACKED_VALUE_LEN;
+    pub(crate) const C_OFFSET: usize = 0;
+    pub(crate) const C_LEN: usize = NUM_HASH_OUT_ELTS;
+    pub(crate) const X_OFFSET: usize = Self::C_OFFSET + Self::C_LEN;
+    pub(crate) const X_LEN: usize = PACKED_ADDRESS_LEN;
+    pub(crate) const V_OFFSET: usize = Self::X_OFFSET + Self::X_LEN;
+    pub(crate) const V_LEN: usize = PACKED_U256_LEN;
+    pub(crate) const R_OFFSET: usize = Self::V_OFFSET + Self::V_LEN;
+    pub(crate) const R_LEN: usize = PACKED_U256_LEN;
 
-    pub const TOTAL_LEN: usize = Self::ROOT_LEN + Self::DIGEST_LEN + Self::OWNER_LEN;
+    pub const TOTAL_LEN: usize = Self::R_OFFSET + Self::R_LEN;
 
     /// Creates a representation of the public inputs from the provided slice.
     ///
@@ -63,82 +68,39 @@ impl<'a, T: Clone + Copy> PublicInputs<'a, T> {
 
     pub fn register(
         b: &mut CircuitBuilder<GoldilocksField, 2>,
-        root: &HashOutTarget,
-        digest: &CurveTarget,
-        user: &PackedValueTarget,
+        c: &HashOutTarget,
+        x: &PackedAddressTarget,
+        v: &PackedU256Target,
+        r: &PackedU256Target,
     ) {
-        b.register_public_inputs(&root.elements);
-        b.register_curve_public_input(*digest);
-        user.register_as_public_input(b);
+        b.register_public_inputs(&c.elements);
+        x.register_as_public_input(b);
+        v.register_as_public_input(b);
+        r.register_as_public_input(b);
     }
 
-    /// Extracts the root hash components from the raw input
-    pub(crate) fn root_raw(&self) -> &[T] {
-        &self.inputs[Self::ROOT_OFFSET..Self::ROOT_OFFSET + Self::ROOT_LEN]
-    }
-
-    /// Extracts curve coordinates from the raw input
-    pub fn digest_raw(
-        &self,
-    ) -> (
-        [T; crate::group_hashing::EXTENSION_DEGREE],
-        [T; crate::group_hashing::EXTENSION_DEGREE],
-        T,
-    ) {
-        let raw = &self.inputs[Self::DIGEST_OFFSET..Self::DIGEST_OFFSET + Self::DIGEST_LEN];
-        convert_slice_to_curve_point(raw)
-    }
-
-    /// Extracts the owner address
-    fn owner_raw(&self) -> &[T] {
-        &self.inputs[Self::OWNER_OFFSET..Self::OWNER_OFFSET + Self::OWNER_LEN]
+    pub(crate) fn c_raw(&self) -> &[T] {
+        &self.inputs[Self::C_OFFSET..Self::C_OFFSET + Self::C_LEN]
     }
 }
 
 impl<'a> PublicInputs<'a, Target> {
-    /// The digest of the current subtree
-    pub fn digest(&self) -> CurveTarget {
-        convert_point_to_curve_target(self.digest_raw())
+    pub fn c(&self) -> HashOutTarget {
+        HashOutTarget::from(from_fn(|i| self.inputs[Self::C_OFFSET + i]))
     }
-
-    /// The root hash of the current subtree
-    pub fn root(&self) -> HashOutTarget {
-        HashOutTarget::from(std::array::from_fn(|i| self.inputs[Self::ROOT_OFFSET + i]))
+    pub fn x(&self) -> PackedAddressTarget {
+        PackedAddressTarget::from_array(from_fn(|i| U32Target(self.inputs[Self::X_OFFSET + i])))
     }
-
-    /// The owner address
-    pub fn owner(&self) -> PackedValueTarget {
-        PackedValueTarget::try_from(self.owner_raw().iter().map(|&t| U32Target(t)).collect_vec())
-            .unwrap()
+    pub fn v(&self) -> PackedU256Target {
+        PackedU256Target::from_array(from_fn(|i| U32Target(self.inputs[Self::V_OFFSET + i])))
+    }
+    pub fn r(&self) -> PackedU256Target {
+        PackedU256Target::from_array(from_fn(|i| U32Target(self.inputs[Self::R_OFFSET + i])))
     }
 }
 
 impl<'a> PublicInputs<'a, GoldilocksField> {
-    /// The digest point of the current subtree
-    pub fn digest(&self) -> WeierstrassPoint {
-        let (x, y, is_inf) = self.digest_raw();
-        WeierstrassPoint {
-            x: QuinticExtension::<GoldilocksField>::from_basefield_array(std::array::from_fn::<
-                GoldilocksField,
-                5,
-                _,
-            >(|i| x[i])),
-            y: QuinticExtension::<GoldilocksField>::from_basefield_array(std::array::from_fn::<
-                GoldilocksField,
-                5,
-                _,
-            >(|i| y[i])),
-            is_inf: is_inf.is_nonzero(),
-        }
-    }
-
-    /// The GLs forming the hash of the current subtree
-    pub fn root(&self) -> HashOut<GoldilocksField> {
-        HashOut::from_vec(self.root_raw().to_owned())
-    }
-
-    /// The owner address as an array of GL
-    pub fn owner(&self) -> &[GoldilocksField] {
-        self.owner_raw()
+    pub fn c(&self) -> HashOut<GoldilocksField> {
+        HashOut::from_vec(self.c_raw().to_owned())
     }
 }
