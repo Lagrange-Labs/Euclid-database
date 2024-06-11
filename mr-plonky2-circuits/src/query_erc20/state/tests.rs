@@ -1,9 +1,13 @@
 use crate::utils::{Packer, ToFields};
 use crate::{query_erc20::state::CircuitInputsInternal, types::MAPPING_KEY_LEN};
+use std::array::from_fn as create_array;
 use std::iter;
 
-use ethers::types::Address;
+use ethers::types::{Address, U256};
 use mrp2_test_utils::circuit::{run_circuit, UserCircuit};
+use mrp2_utils::eth::left_pad32;
+use mrp2_utils::utils::convert_u8_to_u32_slice;
+use plonky2::field::types::Sample;
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::{hash_types::HashOut, hashing::hash_n_to_hash_no_pad, poseidon::PoseidonPermutation},
@@ -24,13 +28,13 @@ use crate::{
         block::BlockPublicInputs, storage::public_inputs::PublicInputs as StorageInputs,
     },
 };
-use mrp2_utils::types::PackedSCAddress;
+use mrp2_utils::types::{PackedSCAddress, PACKED_ADDRESS_LEN};
 
 const MAX_DEPTH: usize = 3;
 type StateCircuit<const MAX_DEPTH: usize> = super::StateCircuit<MAX_DEPTH, GoldilocksField>;
 
 #[test]
-fn prove_and_verify_state_circuit() {
+fn prove_and_verify_state_circuit_erc() {
     let _ = run_state_circuit(0xdead);
 }
 
@@ -40,7 +44,7 @@ fn random_address(rng: &mut StdRng) -> Address {
     address
 }
 
-pub(crate) fn run_state_circuit<'a>(seed: u64) -> ([u8; MAPPING_KEY_LEN], Vec<GoldilocksField>) {
+pub(crate) fn run_state_circuit<'a>(seed: u64) -> Vec<GoldilocksField> {
     let rng = &mut StdRng::seed_from_u64(seed);
     run_state_circuit_with_slot_and_addresses(
         seed,
@@ -57,8 +61,15 @@ pub(crate) fn run_state_circuit_with_slot_and_addresses<'a>(
     mapping_slot: u32,
     sc_address: Address,
     user_address: Address,
-) -> ([u8; MAPPING_KEY_LEN], Vec<GoldilocksField>) {
-    let (mapping_key, inputs) = StorageInputs::inputs_from_seed_and_owner(seed, user_address);
+) -> Vec<GoldilocksField> {
+    let root = create_array(|_| GoldilocksField::rand());
+    let value = U256::from_dec_str("145648").unwrap();
+    let rewards_rate = U256::from_dec_str("34").unwrap();
+    let user_address = convert_u8_to_u32_slice(&left_pad32(user_address.as_fixed_bytes()));
+    let user_address_fields: [GoldilocksField; PACKED_ADDRESS_LEN] =
+        create_array(|i| GoldilocksField::from_canonical_u32(user_address[i]));
+
+    let inputs = StorageInputs::from_parts(&root, &user_address_fields, value, rewards_rate);
     let storage_pi = StorageInputs::from_slice(&inputs);
     let circuit = TestStateCircuit::<MAX_DEPTH>::new_from_slot_and_addr(
         seed,
@@ -79,11 +90,7 @@ pub(crate) fn run_state_circuit_with_slot_and_addresses<'a>(
     assert_eq!(pi.mapping_slot(), circuit.mapping_slot);
     assert_eq!(pi.mapping_slot_length(), circuit.length_slot);
 
-    //let (x, y, f) = storage_pi.query_results();
-    //assert_eq!(&pi.query_results()., &x);
-    //assert_eq!(&pi.digest().y.0, &y);
-
-    (mapping_key, proof.public_inputs.to_owned())
+    proof.public_inputs.to_owned()
 }
 
 #[derive(Debug, Clone)]
@@ -264,7 +271,14 @@ pub(crate) fn generate_inputs_for_state_circuit(
     } else {
         random_address(rng)
     };
-    let (_, storage_pi) = StorageInputs::inputs_from_seed_and_owner(seed, user_address);
+    let root = create_array(|_| GoldilocksField::rand());
+    let value = U256::from_dec_str("145648").unwrap();
+    let rewards_rate = U256::from_dec_str("34").unwrap();
+    let user_address = convert_u8_to_u32_slice(&left_pad32(user_address.as_fixed_bytes()));
+    let user_address_fields: [GoldilocksField; PACKED_ADDRESS_LEN] =
+        create_array(|i| GoldilocksField::from_canonical_u32(user_address[i]));
+
+    let storage_pi = StorageInputs::from_parts(&root, &user_address_fields, value, rewards_rate);
 
     let storage_proof = (
         testing_framework

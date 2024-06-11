@@ -1,6 +1,8 @@
 use crate::types::{PackedAddressTarget, PackedU256Target, PACKED_ADDRESS_LEN, PACKED_U256_LEN};
 use crate::utils::convert_u32_fields_to_u8_vec;
 use ethers::prelude::{Address, U256};
+use mrp2_utils::utils::convert_u8_slice_to_u32_fields;
+use plonky2::field::types::Field;
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::hash_types::{HashOut, HashOutTarget, NUM_HASH_OUT_ELTS},
@@ -107,5 +109,34 @@ impl<'a> PublicInputs<'a, GoldilocksField> {
     }
     pub fn r(&self) -> U256 {
         U256::from_little_endian(&convert_u32_fields_to_u8_vec(self.r_raw()))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    impl<'a> PublicInputs<'a, GoldilocksField> {
+
+        /// Writes the parts of the public inputs into the provided target array.
+        pub fn from_parts(
+            root_hash: &[GoldilocksField; PublicInputs::<()>::C_LEN],
+            owner: &[GoldilocksField; PublicInputs::<()>::X_LEN],
+            value: U256,
+            reward_rate: U256,
+        ) -> [GoldilocksField; Self::TOTAL_LEN] {
+            let mut values = [GoldilocksField::ZERO; Self::TOTAL_LEN];
+            values[Self::C_OFFSET..Self::C_OFFSET + Self::C_LEN].copy_from_slice(root_hash);
+            values[Self::X_OFFSET..Self::X_OFFSET + Self::X_LEN].copy_from_slice(owner);
+            let u256_to_fields = |a: U256| -> Vec<GoldilocksField> {
+                let mut b = [0u8; 32];
+                a.to_little_endian(&mut b[..]);
+                convert_u8_slice_to_u32_fields(&b)
+            };
+            values[Self::V_OFFSET..Self::V_OFFSET + Self::V_LEN]
+                .copy_from_slice(&u256_to_fields(value));
+            values[Self::R_OFFSET..Self::R_OFFSET + Self::R_LEN]
+                .copy_from_slice(&u256_to_fields(reward_rate));
+            values
+        }
     }
 }

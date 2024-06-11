@@ -1,3 +1,5 @@
+use std::array;
+
 use super::{
     inner::{InnerNodeCircuit, InnerNodeWires},
     leaf::{LeafCircuit, LeafWires, HASH_PREFIX},
@@ -11,6 +13,11 @@ use crate::{
 use ethers::prelude::{Address, U256};
 use itertools::Itertools;
 use mrp2_test_utils::circuit::{run_circuit, UserCircuit};
+use mrp2_utils::{
+    eth::left_pad32,
+    types::{MAPPING_KEY_LEN, PACKED_MAPPING_KEY_LEN, PACKED_VALUE_LEN},
+    utils::convert_u8_to_u32_slice,
+};
 use plonky2::field::types::Sample;
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
@@ -29,7 +36,7 @@ use plonky2::{
         proof::ProofWithPublicInputs,
     },
 };
-use rand::{thread_rng, Rng};
+use rand::{rngs::StdRng, thread_rng, Rng, RngCore, SeedableRng};
 
 const D: usize = 2;
 type C = PoseidonGoldilocksConfig;
