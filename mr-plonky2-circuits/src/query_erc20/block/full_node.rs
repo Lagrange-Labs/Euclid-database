@@ -13,7 +13,7 @@ use plonky2::{
 use recursion_framework::circuit_builder::CircuitLogicWires;
 use serde::{Deserialize, Serialize};
 
-use crate::{array::Array, group_hashing::CircuitBuilderGroupHashing};
+use crate::array::Array;
 
 use super::BlockPublicInputs;
 
@@ -54,13 +54,16 @@ impl FullNodeCircuit {
             inputs[1].mapping_slot_length(),
         );
 
-        // TODO
         //inputs[0].max + 1 == children_proof[1].public_inputs[B_min];
+        let right_min = b.sub(inputs[1].block_number(), inputs[1].range());
+        let one = b.one();
+        let left_max = b.add(inputs[0].block_number(), one);
+        b.connect(left_max, right_min);
 
         let root = b.hash_n_to_hash_no_pad::<PoseidonHash>(Vec::from(to_hash.arr));
         let new_range_min_bound = b.sub(inputs[0].block_number(), inputs[0].range());
-        let new_range_max_bound = inputs[1].block_number();
-        let new_range_length = b.sub(new_range_max_bound, new_range_min_bound);
+        let new_upper_block = inputs[1].block_number();
+        let new_range_length = b.sub(new_upper_block, new_range_min_bound);
         // TODO: replace by proper uint256 arithmetic when we have gadget
         let new_result = b.add(
             inputs[0].query_results_raw()[0],
@@ -83,7 +86,7 @@ impl FullNodeCircuit {
 
         BlockPublicInputs::<Target>::register(
             b,
-            new_range_max_bound,
+            new_upper_block,
             new_range_length,
             &root,
             &inputs[0].smart_contract_address(),

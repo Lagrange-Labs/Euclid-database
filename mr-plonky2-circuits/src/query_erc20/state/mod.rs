@@ -159,7 +159,7 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
         let c = storage_proof.c();
         let v = storage_proof.v();
         let rewards = storage_proof.r();
-        
+
         // contract address, mapping slot, length storage slot
         // block number, range
         let a = PackedSCAddressTarget::new(cb);
@@ -201,6 +201,8 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
             .collect();
         let block_leaf_hash = cb.hash_n_to_hash_no_pad::<PoseidonHash>(block_leaf);
 
+        // we simply forward the results and rewards rate here
+        // range is 1 since it's only one block
         BlockPublicInputs::register(cb, b, r, &block_leaf_hash, &a, &x, m, s, v, rewards);
 
         StateWires {
