@@ -1,4 +1,9 @@
+use plonky2::field::types::Field;
+use plonky2_crypto::u32::arithmetic_u32::U32Target;
+use std::array::from_fn as create_array;
+
 use itertools::Itertools;
+use mrp2_utils::types::PackedU256Target;
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::{hash_types::NUM_HASH_OUT_ELTS, poseidon::PoseidonHash},
@@ -49,11 +54,32 @@ impl FullNodeCircuit {
             inputs[1].mapping_slot_length(),
         );
 
+        // TODO
+        //inputs[0].max + 1 == children_proof[1].public_inputs[B_min];
+
         let root = b.hash_n_to_hash_no_pad::<PoseidonHash>(Vec::from(to_hash.arr));
         let new_range_min_bound = b.sub(inputs[0].block_number(), inputs[0].range());
         let new_range_max_bound = inputs[1].block_number();
         let new_range_length = b.sub(new_range_max_bound, new_range_min_bound);
-        let digest = b.add_curve_point(&[inputs[0].digest(), inputs[1].digest()]);
+        // TODO: replace by proper uint256 arithmetic when we have gadget
+        let new_result = b.add(
+            inputs[0].query_results_raw()[0],
+            inputs[1].query_results_raw()[0],
+        );
+        let new_result = PackedU256Target {
+            arr: create_array(|i| {
+                if i == 0 {
+                    U32Target(new_result)
+                } else {
+                    U32Target(b.zero())
+                }
+            }),
+        };
+        // TODO replace by proper UINT256 equality
+        b.connect(
+            inputs[0].rewards_rate_raw()[0],
+            inputs[1].rewards_rate_raw()[0],
+        );
 
         BlockPublicInputs::<Target>::register(
             b,
@@ -64,7 +90,8 @@ impl FullNodeCircuit {
             &inputs[0].user_address(),
             inputs[0].mapping_slot(),
             inputs[0].mapping_slot_length(),
-            digest,
+            new_result,
+            inputs[0].rewards_rate(),
         );
 
         FullNodeWires {}

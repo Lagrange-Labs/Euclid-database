@@ -101,7 +101,8 @@ pub struct StateWires<const MAX_DEPTH: usize> {
 /// - `X` User/Owner address (packed in u32)
 /// - `M` Mapping slot
 /// - `S` Length of the slot
-/// - `Y` Aggregated storage digest
+/// - `V` Query result
+/// - `R` Rewards Rate
 ///
 /// # Circuit
 ///
@@ -153,10 +154,14 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
         cb: &mut CircuitBuilder<GoldilocksField, 2>,
         storage_proof: &StorageInputs<Target>,
     ) -> StateWires<MAX_DEPTH> {
-        let x = storage_proof.owner();
-        let c = storage_proof.root();
-        let digest = storage_proof.digest();
-
+        // address, root, value, rewardsRate
+        let x = storage_proof.x();
+        let c = storage_proof.c();
+        let v = storage_proof.v();
+        let rewards = storage_proof.r();
+        
+        // contract address, mapping slot, length storage slot
+        // block number, range
         let a = PackedSCAddressTarget::new(cb);
         let m = cb.add_virtual_target();
         let s = cb.add_virtual_target();
@@ -196,7 +201,7 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
             .collect();
         let block_leaf_hash = cb.hash_n_to_hash_no_pad::<PoseidonHash>(block_leaf);
 
-        BlockPublicInputs::register(cb, b, r, &block_leaf_hash, &a, &x, m, s, digest);
+        BlockPublicInputs::register(cb, b, r, &block_leaf_hash, &a, &x, m, s, v, rewards);
 
         StateWires {
             smart_contract_address: a,

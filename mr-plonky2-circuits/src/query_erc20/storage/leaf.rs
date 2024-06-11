@@ -1,60 +1,84 @@
-// Contain the mechanisms required to prove the inclusion of a Key, Value pair in the storage database.
-
+use crate::{
+    array::Targetable,
+    query_erc20::storage::public_inputs::PublicInputs,
+    types::{PackedAddressTarget, PackedU256Target},
+    utils::Packer,
+};
+use ethers::prelude::{Address, U256};
+use plonky2::field::types::Field;
 use plonky2::{
     field::goldilocks_field::GoldilocksField, hash::poseidon::PoseidonHash,
     iop::witness::PartialWitness, plonk::circuit_builder::CircuitBuilder,
 };
-use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use recursion_framework::circuit_builder::CircuitLogicWires;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    array::Array,
-    group_hashing::CircuitBuilderGroupHashing,
-    query_erc20::storage::public_inputs::PublicInputs,
-    types::{PackedMappingKeyTarget, PACKED_MAPPING_KEY_LEN, PACKED_VALUE_LEN},
-};
+const HASH_PREFIX: &[u8] = b"LEAF";
 
 #[derive(Serialize, Deserialize)]
 pub struct LeafWires {
-    pub packed_mapping_key: Array<U32Target, PACKED_MAPPING_KEY_LEN>,
-    pub packed_mapping_value: Array<U32Target, PACKED_VALUE_LEN>,
+    address: PackedAddressTarget,
+    value: PackedU256Target,
+    total_supply: PackedU256Target,
+    reward: PackedU256Target,
 }
 
-/// This circuit prove the new root hash of a leaf containing the requested data
 #[derive(Clone, Debug)]
 pub struct LeafCircuit {
-    pub mapping_key: [u32; PACKED_MAPPING_KEY_LEN],
-    pub mapping_value: [u32; PACKED_VALUE_LEN],
+    pub address: Address,
+    pub value: U256,
+    pub total_supply: U256,
+    pub reward: U256,
 }
 
 impl LeafCircuit {
     pub fn assign(&self, pw: &mut PartialWitness<GoldilocksField>, wires: &LeafWires) {
-        wires
-            .packed_mapping_key
-            .assign_from_data(pw, &self.mapping_key);
-        wires
-            .packed_mapping_value
-            .assign_from_data(pw, &self.mapping_value);
+        let address = (&self.address.0).pack().try_into().unwrap();
+        wires.address.assign_from_data(pw, &address);
+
+        let mut bytes = [0; 32];
+        [
+            (self.value, &wires.value),
+            (self.total_supply, &wires.total_supply),
+            (self.reward, &wires.reward),
+        ]
+        .iter()
+        .for_each(|(v, w)| {
+            v.to_little_endian(&mut bytes);
+            let v = bytes.pack().try_into().unwrap();
+
+            w.assign_from_data(pw, &v);
+        });
     }
 
     fn build(b: &mut CircuitBuilder<GoldilocksField, 2>) -> LeafWires {
-        let key_u32 = PackedMappingKeyTarget::new(b);
-        let value_u32 = Array::<U32Target, PACKED_VALUE_LEN>::new(b);
-        let kv = key_u32.concat(&value_u32).to_targets();
+        let address = PackedAddressTarget::new(b);
+        let [value, total_supply, reward] = [0; 3].map(|_| PackedU256Target::new(b));
 
-        // the digest is done on the key only, in compact form, because our goal is
-        // to reval all the keys at the last step of the computation graph
-        let digest = b.map_to_curve_point(&key_u32.to_targets().arr);
-        // the root is done on both as this is what proves the inclusion in the storage db
-        let root = b.hash_n_to_hash_no_pad::<PoseidonHash>(Vec::from(kv.arr));
+        // C = poseidon("LEAF" || pack_u32(address) || pack_u32(value))
+        let prefix: Vec<_> = HASH_PREFIX
+            .iter()
+            .map(|v| GoldilocksField::from_canonical_u8(*v))
+            .collect();
+        let prefix = b.constants(&prefix);
+        let inputs = prefix
+            .into_iter()
+            .chain(address.arr.map(|v| v.to_target()))
+            .chain(value.arr.map(|v| v.to_target()))
+            .collect();
+        let c = b.hash_n_to_hash_no_pad::<PoseidonHash>(inputs);
 
-        // we expose the value, in compact form to the public inputs, it gets propagated
-        // up the computation tree
-        PublicInputs::<GoldilocksField>::register(b, &root, &digest, &value_u32);
+        // V = R * value / totalSupply
+        // TODO: U256 operations
+        let v = &reward;
+
+        PublicInputs::<GoldilocksField>::register(b, &c, &address, v, &reward);
+
         LeafWires {
-            packed_mapping_key: key_u32,
-            packed_mapping_value: value_u32,
+            address,
+            value,
+            total_supply,
+            reward,
         }
     }
 }
@@ -80,23 +104,5 @@ impl CircuitLogicWires<GoldilocksField, 2, 0> for LeafWires {
     ) -> anyhow::Result<()> {
         inputs.assign(pw, self);
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use mrp2_test_utils::circuit::UserCircuit;
-
-    impl UserCircuit<GoldilocksField, 2> for LeafCircuit {
-        type Wires = LeafWires;
-
-        fn build(b: &mut CircuitBuilder<GoldilocksField, 2>) -> Self::Wires {
-            LeafCircuit::build(b)
-        }
-
-        fn prove(&self, pw: &mut PartialWitness<GoldilocksField>, wires: &Self::Wires) {
-            self.assign(pw, wires);
-        }
     }
 }

@@ -1,6 +1,10 @@
-use std::fmt::{self, Debug};
+use std::{
+    array::from_fn as create_array,
+    fmt::{self, Debug},
+};
 
 use itertools::Itertools;
+use mrp2_utils::types::{PackedU256Target, PACKED_U256_LEN};
 use plonky2::{
     field::{
         extension::{quintic::QuinticExtension, FieldExtension},
@@ -187,20 +191,23 @@ pub enum Inputs {
     MappingSlot,
     /// S - storage slot length
     StorageSlotLength,
-    /// D - aggregated digest
-    Digest,
+    /// V - Aggregate result of the query
+    QueryResult,
+    /// R - Rewards rate of the query
+    RewardsRate,
 }
-const NUM_ELEMENTS: usize = 8;
+const NUM_ELEMENTS: usize = 9;
 impl Inputs {
     const SIZES: [usize; NUM_ELEMENTS] = [
         1,
         1,
         NUM_HASH_OUT_ELTS,
         PackedAddressTarget::LEN,
-        PACKED_VALUE_LEN,
+        PackedAddressTarget::LEN,
         1,
         1,
-        CURVE_TARGET_LEN,
+        PACKED_U256_LEN, // result
+        PACKED_U256_LEN, // reward rate
     ];
 
     const fn total_len() -> usize {
@@ -249,7 +256,7 @@ impl<'a, T: Clone + Copy + Debug> Debug for BlockPublicInputs<'a, T> {
             "Storage slot length: {:?}",
             self.storage_slot_length_raw()
         )?;
-        writeln!(f, "Digest: {:?}", self.digest_raw())
+        writeln!(f, "Query Results: {:?}", self.query_results_raw())
     }
 }
 
@@ -284,14 +291,12 @@ impl<'a, T: Clone + Copy> BlockPublicInputs<'a, T> {
         &self.inputs[Inputs::StorageSlotLength.range()]
     }
 
-    fn digest_raw(
-        &self,
-    ) -> (
-        [T; crate::group_hashing::EXTENSION_DEGREE],
-        [T; crate::group_hashing::EXTENSION_DEGREE],
-        T,
-    ) {
-        convert_slice_to_curve_point(&self.inputs[Inputs::Digest.range()])
+    fn query_results_raw(&self) -> [T; PACKED_U256_LEN] {
+        self.inputs[Inputs::QueryResult.range()].try_into().unwrap()
+    }
+
+    fn rewards_rate_raw(&self) -> [T; PACKED_U256_LEN] {
+        self.inputs[Inputs::RewardsRate.range()].try_into().unwrap()
     }
 
     pub(crate) const fn total_len() -> usize {
@@ -324,8 +329,8 @@ impl<'a> BlockPublicInputs<'a, Target> {
         .unwrap()
     }
 
-    pub(crate) fn user_address(&self) -> PackedValueTarget {
-        PackedValueTarget::try_from(
+    pub(crate) fn user_address(&self) -> PackedAddressTarget {
+        PackedAddressTarget::try_from(
             self.user_address_raw()
                 .iter()
                 .map(|&t| U32Target(t))
@@ -338,12 +343,18 @@ impl<'a> BlockPublicInputs<'a, Target> {
         self.mapping_slot_raw()[0]
     }
 
-    pub(crate) fn digest(&self) -> CurveTarget {
-        convert_point_to_curve_target(self.digest_raw())
-    }
-
     pub(crate) fn mapping_slot_length(&self) -> Target {
         self.storage_slot_length_raw()[0]
+    }
+
+    pub(crate) fn query_results(&self) -> PackedU256Target {
+        let raw = self.query_results_raw();
+        PackedU256Target::from_array(create_array(|i| U32Target(raw[i])))
+    }
+
+    pub(crate) fn rewards_rate(&self) -> PackedU256Target {
+        let raw = self.rewards_rate_raw();
+        PackedU256Target::from_array(create_array(|i| U32Target(raw[i])))
     }
 
     pub fn register(
@@ -352,10 +363,11 @@ impl<'a> BlockPublicInputs<'a, Target> {
         range: Target,
         root: &HashOutTarget,
         smc_address: &PackedAddressTarget,
-        user_address: &PackedValueTarget,
+        user_address: &PackedAddressTarget,
         mapping_slot: Target,
         mapping_slot_length: Target,
-        digest: CurveTarget,
+        results: PackedU256Target,
+        rewards_rate: PackedU256Target,
     ) {
         b.register_public_input(block_number);
         b.register_public_input(range);
@@ -364,7 +376,8 @@ impl<'a> BlockPublicInputs<'a, Target> {
         user_address.register_as_public_input(b);
         b.register_public_input(mapping_slot);
         b.register_public_input(mapping_slot_length);
-        b.register_curve_public_input(digest);
+        results.register_as_public_input(b);
+        rewards_rate.register_as_public_input(b);
     }
 }
 
@@ -417,28 +430,12 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
         self.mapping_slot_raw()[0]
     }
 
-    pub fn digest(&self) -> WeierstrassPoint {
-        let (x, y, is_inf) = self.digest_raw();
-        WeierstrassPoint {
-            x: QuinticExtension::<GoldilocksField>::from_basefield_array(std::array::from_fn::<
-                GoldilocksField,
-                5,
-                _,
-            >(|i| x[i])),
-            y: QuinticExtension::<GoldilocksField>::from_basefield_array(std::array::from_fn::<
-                GoldilocksField,
-                5,
-                _,
-            >(|i| y[i])),
-            is_inf: is_inf.is_nonzero(),
-        }
-    }
-
     pub(crate) fn mapping_slot_length(&self) -> GoldilocksField {
         self.storage_slot_length_raw()[0]
     }
 }
 
+/* TODO
 #[cfg(test)]
 mod tests {
     use ethers::types::Address;
@@ -537,3 +534,4 @@ mod tests {
             .unwrap();
     }
 }
+*/

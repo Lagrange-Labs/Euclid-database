@@ -61,7 +61,8 @@ impl PartialNodeCircuit {
             &proved.user_address(),
             proved.mapping_slot(),
             proved.mapping_slot_length(),
-            proved.digest(),
+            proved.query_results(),
+            proved.rewards_rate(),
         );
 
         PartialNodeWires {
