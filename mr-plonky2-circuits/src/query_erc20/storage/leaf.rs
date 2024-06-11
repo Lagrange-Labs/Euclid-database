@@ -1,7 +1,7 @@
 use crate::{
     array::Targetable,
     query_erc20::storage::public_inputs::PublicInputs,
-    types::{PackedAddressTarget, PackedU256Target},
+    types::{PackedAddressTarget, PackedU256Target, PACKED_U256_LEN},
     utils::Packer,
 };
 use ethers::prelude::{Address, U256};
@@ -10,10 +10,11 @@ use plonky2::{
     field::goldilocks_field::GoldilocksField, hash::poseidon::PoseidonHash,
     iop::witness::PartialWitness, plonk::circuit_builder::CircuitBuilder,
 };
+use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use recursion_framework::circuit_builder::CircuitLogicWires;
 use serde::{Deserialize, Serialize};
 
-const HASH_PREFIX: &[u8] = b"LEAF";
+pub(crate) const HASH_PREFIX: &[u8] = b"LEAF";
 
 #[derive(Serialize, Deserialize)]
 pub struct LeafWires {
@@ -51,7 +52,7 @@ impl LeafCircuit {
         });
     }
 
-    fn build(b: &mut CircuitBuilder<GoldilocksField, 2>) -> LeafWires {
+    pub fn build(b: &mut CircuitBuilder<GoldilocksField, 2>) -> LeafWires {
         let address = PackedAddressTarget::new(b);
         let [value, total_supply, reward] = [0; 3].map(|_| PackedU256Target::new(b));
 
@@ -70,9 +71,10 @@ impl LeafCircuit {
 
         // V = R * value / totalSupply
         // TODO: U256 operations
-        let v = &reward;
+        let fake_v = b.constants(&[GoldilocksField::ZERO; PACKED_U256_LEN]);
+        let v = PackedU256Target::from(std::array::from_fn(|i| U32Target(fake_v[i])));
 
-        PublicInputs::<GoldilocksField>::register(b, &c, &address, v, &reward);
+        PublicInputs::<GoldilocksField>::register(b, &c, &address, &v, &reward);
 
         LeafWires {
             address,
