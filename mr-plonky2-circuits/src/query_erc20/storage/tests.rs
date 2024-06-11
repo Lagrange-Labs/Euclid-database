@@ -65,7 +65,7 @@ impl<'a> UserCircuit<F, D> for TestInnerNodeCircuit<'a> {
 
     fn build(b: &mut CircuitBuilder<GoldilocksField, 2>) -> Self::Wires {
         let child_pi = b.add_virtual_targets(PublicInputs::<Target>::TOTAL_LEN);
-        let inner_node_wires = InnerNodeCircuit::build(b, PublicInputs::from_slice(&child_pi));
+        let inner_node_wires = InnerNodeCircuit::build(b, &PublicInputs::from_slice(&child_pi));
 
         (inner_node_wires, child_pi)
     }
