@@ -153,9 +153,15 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
         cb: &mut CircuitBuilder<GoldilocksField, 2>,
         storage_proof: &StorageInputs<Target>,
     ) -> StateWires<MAX_DEPTH> {
-        let x = storage_proof.owner();
-        let c = storage_proof.root();
-        let digest = storage_proof.digest();
+        // TODO: update with storage proof
+        // let x = storage_proof.owner();
+        // let c = storage_proof.root();
+        // let digest = storage_proof.digest();
+        use crate::types::PackedValueTarget;
+        use plonky2_ecgfp5::gadgets::curve::CircuitBuilderEcGFp5;
+        let x = PackedValueTarget::new(cb);
+        let c = cb.add_virtual_hash();
+        let digest = cb.add_virtual_curve_target();
 
         let a = PackedSCAddressTarget::new(cb);
         let m = cb.add_virtual_target();

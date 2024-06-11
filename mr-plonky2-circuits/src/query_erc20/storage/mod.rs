@@ -40,13 +40,13 @@ impl CircuitInput {
         })
     }
 
-    pub fn new_partial_node(left: &[u8], right: &[u8], proved_is_right: bool) -> Self {
+    pub fn new_inner_node(left: &[u8], right: &[u8], proved_is_right: bool) -> Self {
         let proof = ProofWithVK::deserialize(if proved_is_right { right } else { left })
             .expect("unable to deserialize proof");
         let unproved_hash = HashOut::from_bytes(if proved_is_right { left } else { right });
 
-        CircuitInput::PartialInner(
-            PartialInnerNodeCircuit {
+        CircuitInput::Inner(
+            InnerNodeCircuit {
                 proved_is_right,
                 unproved_hash,
             },
