@@ -10,7 +10,7 @@ use crate::{
     group_hashing::map_to_curve_point,
     storage::lpn::{intermediate_node_hash, leaf_hash_for_mapping},
     types::{MAPPING_KEY_LEN, PACKED_MAPPING_KEY_LEN, PACKED_VALUE_LEN},
-    utils::{convert_u8_slice_to_u32_fields, convert_u8_to_u32_slice},
+    utils::{convert_u8_slice_to_u32_fields, convert_u8_to_u32_slice, ToFields},
 };
 use ethers::prelude::{Address, U256};
 use itertools::Itertools;
@@ -41,7 +41,12 @@ const D: usize = 2;
 type C = PoseidonGoldilocksConfig;
 type F = <C as GenericConfig<D>>::F;
 
-impl UserCircuit<GoldilocksField, 2> for LeafCircuit {
+#[derive(Clone, Debug)]
+struct TestLeafCircuit {
+    c: LeafCircuit,
+}
+
+impl UserCircuit<GoldilocksField, 2> for TestLeafCircuit {
     type Wires = LeafWires;
 
     fn build(b: &mut CircuitBuilder<GoldilocksField, 2>) -> Self::Wires {
@@ -49,14 +54,14 @@ impl UserCircuit<GoldilocksField, 2> for LeafCircuit {
     }
 
     fn prove(&self, pw: &mut PartialWitness<GoldilocksField>, wires: &Self::Wires) {
-        self.assign(pw, wires);
+        self.c.assign(pw, wires);
     }
 }
 
 #[derive(Clone, Debug)]
 struct TestInnerNodeCircuit<'a> {
     c: InnerNodeCircuit,
-    child_pi: &'a [F],
+    child_pi_slice: &'a [F],
 }
 
 impl<'a> UserCircuit<F, D> for TestInnerNodeCircuit<'a> {
@@ -74,7 +79,7 @@ impl<'a> UserCircuit<F, D> for TestInnerNodeCircuit<'a> {
         self.c.assign(pw, &wires.0);
 
         assert_eq!(wires.1.len(), PublicInputs::<Target>::TOTAL_LEN);
-        pw.set_target_arr(&wires.1, self.child_pi);
+        pw.set_target_arr(&wires.1, self.child_pi_slice);
     }
 }
 
@@ -84,14 +89,16 @@ fn test_storage_leaf_circuit() {
     let address = Address::random();
     let [value, total_supply, reward] = [0; 3].map(|_| U256(rng.gen::<[u64; 4]>()));
 
-    let circuit = LeafCircuit {
-        address,
-        value,
-        total_supply,
-        reward,
+    let test_circuit = TestLeafCircuit {
+        c: LeafCircuit {
+            address,
+            value,
+            total_supply,
+            reward,
+        },
     };
 
-    let proof = run_circuit::<_, D, C, _>(circuit);
+    let proof = run_circuit::<_, D, C, _>(test_circuit);
     let pi = PublicInputs::<GoldilocksField>::from_slice(&proof.public_inputs);
 
     // Calculate the expected hash:
@@ -118,81 +125,71 @@ fn test_storage_leaf_circuit() {
     assert_eq!(pi.r(), reward);
 }
 
-/*
 #[test]
 fn test_storage_inner_node_circuit() {
+    let mut rng = thread_rng();
+    let child_pi_slice = &rng
+        .gen::<[u32; PublicInputs::<Target>::TOTAL_LEN]>()
+        .to_fields();
+    let unproved_hash = HashOut::from_vec(rng.gen::<[u8; NUM_HASH_OUT_ELTS]>().to_fields());
     let test_circuit = TestInnerNodeCircuit {
-        c: InnerNodeCircuit {},
-        children: &[
-            PublicInputs::from(left.proof.public_inputs.as_slice()),
-        ],
+        c: InnerNodeCircuit {
+            proved_is_right: true,
+            unproved_hash,
+        },
+        child_pi_slice,
     };
-    let middle_proof = run_circuit::<F, D, C, _>(inner);
-    let middle_ios = PublicInputs::<F>::from(middle_proof.public_inputs.as_slice());
+
+    let proof = run_circuit::<_, D, C, _>(test_circuit);
+    let [pi, child_pi] = [&proof.public_inputs, child_pi_slice]
+        .map(|pi| PublicInputs::<GoldilocksField>::from_slice(pi));
+    // TODO: check the hash (p[C])
+    assert_eq!(pi.x(), child_pi.x());
+    assert_eq!(pi.v(), child_pi.v());
+    assert_eq!(pi.r(), child_pi.r());
+
+    let test_circuit = TestInnerNodeCircuit {
+        c: InnerNodeCircuit {
+            proved_is_right: false,
+            unproved_hash,
+        },
+        child_pi_slice,
+    };
+
+    let proof = run_circuit::<_, D, C, _>(test_circuit);
+    let [pi, child_pi] = [&proof.public_inputs, child_pi_slice]
+        .map(|pi| PublicInputs::<GoldilocksField>::from_slice(pi));
+    // TODO: check the hash (p[C])
+    assert_eq!(pi.x(), child_pi.x());
+    assert_eq!(pi.v(), child_pi.v());
+    assert_eq!(pi.r(), child_pi.r());
 }
 
 #[test]
 fn test_storage_api() {
-    let some_hash = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(
-        &b"coucou"
-            .iter()
-            .copied()
-            .map(F::from_canonical_u8)
-            .collect_vec(),
-    )
-    .to_bytes();
-
     let params = Parameters::build();
 
-    let leaf1 = params
-        .generate_proof(CircuitInput::new_leaf(b"jean", b"michel"))
+    let mut rng = thread_rng();
+    let address = Address::random();
+    let [value, total_supply, reward] = [0; 3].map(|_| U256(rng.gen::<[u64; 4]>()));
+    let leaf = params
+        .generate_proof(CircuitInput::new_leaf(address, value, total_supply, reward))
         .unwrap();
     params
         .leaf_circuit
         .circuit_data()
-        .verify(ProofWithVK::deserialize(&leaf1).unwrap().proof)
+        .verify(ProofWithVK::deserialize(&leaf).unwrap().proof)
         .unwrap();
-    let leaf2 = params
-        .generate_proof(CircuitInput::new_leaf(b"juan", b"michel"))
-        .unwrap();
-    params
-        .leaf_circuit
-        .circuit_data()
-        .verify(ProofWithVK::deserialize(&leaf1).unwrap().proof)
-        .unwrap();
-
-    let partial_inner = params
-        .generate_proof(CircuitInput::new_partial_node(&leaf1, &some_hash, false))
+    let unproved_hash = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(
+        &rng.gen::<[u8; 16]>().map(F::from_canonical_u8),
+    )
+    .to_bytes();
+    let inner = params
+        .generate_proof(CircuitInput::new_inner_node(&leaf, &unproved_hash, false))
         .unwrap();
     params
-        .partial_node_circuit
+        .inner_node_circuit
         .circuit_data()
-        .verify(ProofWithVK::deserialize(&partial_inner).unwrap().proof)
+        .verify(ProofWithVK::deserialize(&inner).unwrap().proof)
         .unwrap();
 }
-
-fn test_leaf(k: &[u8], v: &[u8]) {
-}
-
-#[derive(Clone, Debug)]
-struct PartialInnerNodeCircuitValidator<'a> {
-    validated: PartialInnerNodeCircuit,
-    proved_child: &'a PublicInputs<'a, F>,
-}
-impl<'a> UserCircuit<GoldilocksField, 2> for PartialInnerNodeCircuitValidator<'a> {
-    type Wires = (PartialInnerNodeWires, Vec<Target>);
-
-    fn build(c: &mut CircuitBuilder<GoldilocksField, 2>) -> Self::Wires {
-        let leaf_child_pi = c.add_virtual_targets(PublicInputs::<Target>::TOTAL_LEN);
-        let leaf_child_io = PublicInputs::from(leaf_child_pi.as_slice());
-
-        let wires = PartialInnerNodeCircuit::build(c, &leaf_child_io);
-        (wires, leaf_child_pi.try_into().unwrap())
-    }
-
-    fn prove(&self, pw: &mut PartialWitness<GoldilocksField>, wires: &Self::Wires) {
-        self.validated.assign(pw, &wires.0);
-        pw.set_target_arr(&wires.1, self.proved_child.inputs);
-    }
-}
-*/

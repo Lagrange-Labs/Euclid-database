@@ -51,7 +51,7 @@ impl LeafCircuit {
         });
     }
 
-    fn build(b: &mut CircuitBuilder<GoldilocksField, 2>) -> LeafWires {
+    pub fn build(b: &mut CircuitBuilder<GoldilocksField, 2>) -> LeafWires {
         let address = PackedAddressTarget::new(b);
         let [value, total_supply, reward] = [0; 3].map(|_| PackedU256Target::new(b));
 
