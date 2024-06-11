@@ -6,11 +6,7 @@ use super::{
 };
 use crate::{
     api::ProofWithVK,
-    eth::left_pad32,
-    group_hashing::map_to_curve_point,
-    storage::lpn::{intermediate_node_hash, leaf_hash_for_mapping},
-    types::{MAPPING_KEY_LEN, PACKED_MAPPING_KEY_LEN, PACKED_VALUE_LEN},
-    utils::{convert_u8_slice_to_u32_fields, convert_u8_to_u32_slice, ToFields},
+    utils::{convert_u8_slice_to_u32_fields, ToFields},
 };
 use ethers::prelude::{Address, U256};
 use itertools::Itertools;
@@ -33,9 +29,7 @@ use plonky2::{
         proof::ProofWithPublicInputs,
     },
 };
-use rand::{rngs::StdRng, RngCore, SeedableRng};
 use rand::{thread_rng, Rng};
-use std::{array::from_fn, ops::Add};
 
 const D: usize = 2;
 type C = PoseidonGoldilocksConfig;
@@ -143,7 +137,13 @@ fn test_storage_inner_node_circuit() {
     let proof = run_circuit::<_, D, C, _>(test_circuit);
     let [pi, child_pi] = [&proof.public_inputs, child_pi_slice]
         .map(|pi| PublicInputs::<GoldilocksField>::from_slice(pi));
-    // TODO: check the hash (p[C])
+    let inputs: Vec<_> = unproved_hash
+        .elements
+        .into_iter()
+        .chain(child_pi.c().elements)
+        .collect();
+    let exp_c = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(&inputs);
+    assert_eq!(pi.c(), exp_c);
     assert_eq!(pi.x(), child_pi.x());
     assert_eq!(pi.v(), child_pi.v());
     assert_eq!(pi.r(), child_pi.r());
@@ -159,7 +159,14 @@ fn test_storage_inner_node_circuit() {
     let proof = run_circuit::<_, D, C, _>(test_circuit);
     let [pi, child_pi] = [&proof.public_inputs, child_pi_slice]
         .map(|pi| PublicInputs::<GoldilocksField>::from_slice(pi));
-    // TODO: check the hash (p[C])
+    let inputs: Vec<_> = child_pi
+        .c()
+        .elements
+        .into_iter()
+        .chain(unproved_hash.elements)
+        .collect();
+    let exp_c = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(&inputs);
+    assert_eq!(pi.c(), exp_c);
     assert_eq!(pi.x(), child_pi.x());
     assert_eq!(pi.v(), child_pi.v());
     assert_eq!(pi.r(), child_pi.r());

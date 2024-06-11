@@ -70,9 +70,9 @@ impl LeafCircuit {
 
         // V = R * value / totalSupply
         // TODO: U256 operations
-        let v = &reward;
+        let v = PackedU256Target::new(b);
 
-        PublicInputs::<GoldilocksField>::register(b, &c, &address, v, &reward);
+        PublicInputs::<GoldilocksField>::register(b, &c, &address, &v, &reward);
 
         LeafWires {
             address,
