@@ -92,6 +92,7 @@ fn test_query_erc20_storage_leaf_circuit() {
 
     let test_circuit = TestLeafCircuit {
         c: LeafCircuit {
+            query_address: address,
             address,
             value,
             total_supply,
@@ -187,7 +188,13 @@ fn test_query_erc20_storage_api() {
     let address = Address::random();
     let [value, total_supply, reward] = [0; 3].map(|_| U256(rng.gen::<[u64; 4]>()));
     let leaf = params
-        .generate_proof(CircuitInput::new_leaf(address, value, total_supply, reward))
+        .generate_proof(CircuitInput::new_leaf(
+            address,
+            address,
+            value,
+            total_supply,
+            reward,
+        ))
         .unwrap();
     params
         .leaf_circuit

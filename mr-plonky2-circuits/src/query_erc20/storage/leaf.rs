@@ -20,7 +20,9 @@ pub(crate) const HASH_PREFIX: &[u8] = b"LEAF";
 
 #[derive(Serialize, Deserialize)]
 pub struct LeafWires {
+    // Note this is a fix because we can't prove non membership yet in v0
     address: PackedAddressTarget,
+    query_address: PackedAddressTarget,
     value: PackedU256Target,
     total_supply: PackedU256Target,
     reward: PackedU256Target,
@@ -29,6 +31,7 @@ pub struct LeafWires {
 #[derive(Clone, Debug)]
 pub struct LeafCircuit {
     pub address: Address,
+    pub query_address: Address,
     pub value: U256,
     pub total_supply: U256,
     pub reward: U256,
@@ -38,6 +41,8 @@ impl LeafCircuit {
     pub fn assign(&self, pw: &mut PartialWitness<GoldilocksField>, wires: &LeafWires) {
         let address = (&self.address.0).pack().try_into().unwrap();
         wires.address.assign_from_data(pw, &address);
+        let query_address = (&self.query_address.0).pack().try_into().unwrap();
+        wires.query_address.assign_from_data(pw,&query_address);
 
         let mut bytes = [0; 32];
         [
@@ -89,6 +94,7 @@ impl LeafCircuit {
 
         LeafWires {
             address,
+            query_address,
             value,
             total_supply,
             reward,
