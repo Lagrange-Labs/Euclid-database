@@ -115,10 +115,10 @@ impl<'a, T: Clone + Copy> RevelationPublicInputs<'a, T> {
     fn block_header_raw(&self) -> &[T] {
         &self.inputs[Inputs::BlockHeader.range()]
     }
-    fn result(&self) -> &[T] {
+    fn query_results_raw(&self) -> &[T] {
         &self.inputs[Inputs::QueryResult.range()]
     }
-    fn rewards_rate(&self) -> &[T] {
+    fn query_rewards_rate_raw(&self) -> &[T] {
         &self.inputs[Inputs::RewardsRate.range()]
     }
     pub const fn total_len() -> usize {
@@ -194,8 +194,11 @@ impl<'a> RevelationPublicInputs<'a, Target> {
         self.mapping_slot_length_raw()[0]
     }
 
-    fn nft_ids(&self) -> &[Target] {
-        self.nft_ids_raw()
+    fn query_results(&self) -> &[Target] {
+        self.query_results_raw()
+    }
+    fn query_rewards_rate(&self) -> &[Target] {
+        self.query_rewards_rate_raw()
     }
 
     fn block_header(&self) -> OutputHash {
@@ -243,8 +246,12 @@ impl<'a> RevelationPublicInputs<'a, GoldilocksField> {
         self.mapping_slot_length_raw()[0]
     }
 
-    pub(crate) fn nft_ids(&self) -> &[GoldilocksField] {
-        self.nft_ids_raw()
+    pub(crate) fn query_results(&self) -> &[GoldilocksField] {
+        self.query_results()
+    }
+
+    pub(crate) fn rewards_rate(&self) -> &[GoldilocksField] {
+        self.rewards_rate()
     }
 
     pub(crate) fn block_header(&self) -> &[GoldilocksField] {

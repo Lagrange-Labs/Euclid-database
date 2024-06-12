@@ -158,7 +158,7 @@ impl<const MAX_DEPTH: usize> TestStateCircuit<MAX_DEPTH> {
             .iter()
             .chain(iter::once(&mapping_slot))
             .chain(iter::once(&length_slot))
-            .chain(storage.c_raw().iter())
+            .chain(storage.root_hash_raw().iter())
             .copied()
             .collect();
 

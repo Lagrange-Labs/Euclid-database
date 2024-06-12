@@ -47,11 +47,17 @@ impl InnerNodeCircuit {
         // C = if position = 0 ? poseidon(sibling_hash || p[C]) else poseidon(p[C] || sibling_hash)
         let c = hash_maybe_swap(
             b,
-            &[proved.c().elements, unproved_hash.elements],
+            &[proved.root_hash().elements, unproved_hash.elements],
             proved_is_right,
         );
 
-        PublicInputs::<Target>::register(b, &c, &proved.x(), &proved.v(), &proved.r());
+        PublicInputs::<Target>::register(
+            b,
+            &c,
+            &proved.query_user_address(),
+            &proved.query_results(),
+            &proved.query_rewards_rate(),
+        );
 
         InnerNodeWires {
             unproved_hash,

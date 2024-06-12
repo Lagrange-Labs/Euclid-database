@@ -119,11 +119,11 @@ fn test_query_erc20_storage_leaf_circuit() {
         .collect();
     let exp_c = hash_n_to_hash_no_pad::<_, PoseidonPermutation<_>>(&inputs);
 
-    assert_eq!(pi.c(), exp_c);
-    assert_eq!(pi.x(), address);
+    assert_eq!(pi.root_hash(), exp_c);
+    assert_eq!(pi.query_user_address(), address);
     // TODO
     // assert_eq!(pi.v(), reward * value / total_supply);
-    assert_eq!(pi.r(), reward);
+    assert_eq!(pi.query_rewards_rate(), reward);
 }
 
 #[test]
@@ -147,13 +147,13 @@ fn test_query_erc20_storage_inner_node_circuit() {
     let inputs: Vec<_> = unproved_hash
         .elements
         .into_iter()
-        .chain(child_pi.c().elements)
+        .chain(child_pi.root_hash().elements)
         .collect();
     let exp_c = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(&inputs);
-    assert_eq!(pi.c(), exp_c);
-    assert_eq!(pi.x(), child_pi.x());
-    assert_eq!(pi.v(), child_pi.v());
-    assert_eq!(pi.r(), child_pi.r());
+    assert_eq!(pi.root_hash(), exp_c);
+    assert_eq!(pi.query_user_address(), child_pi.query_user_address());
+    assert_eq!(pi.query_results(), child_pi.query_results());
+    assert_eq!(pi.query_rewards_rate(), child_pi.query_rewards_rate());
 
     let test_circuit = TestInnerNodeCircuit {
         c: InnerNodeCircuit {
@@ -167,16 +167,16 @@ fn test_query_erc20_storage_inner_node_circuit() {
     let [pi, child_pi] = [&proof.public_inputs, child_pi_slice]
         .map(|pi| PublicInputs::<GoldilocksField>::from_slice(pi));
     let inputs: Vec<_> = child_pi
-        .c()
+        .root_hash()
         .elements
         .into_iter()
         .chain(unproved_hash.elements)
         .collect();
     let exp_c = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(&inputs);
-    assert_eq!(pi.c(), exp_c);
-    assert_eq!(pi.x(), child_pi.x());
-    assert_eq!(pi.v(), child_pi.v());
-    assert_eq!(pi.r(), child_pi.r());
+    assert_eq!(pi.root_hash(), exp_c);
+    assert_eq!(pi.query_user_address(), child_pi.query_user_address());
+    assert_eq!(pi.query_results(), child_pi.query_results());
+    assert_eq!(pi.query_rewards_rate(), child_pi.query_rewards_rate());
 }
 
 #[test]

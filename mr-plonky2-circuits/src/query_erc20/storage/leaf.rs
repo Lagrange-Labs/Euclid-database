@@ -1,3 +1,5 @@
+use std::array::from_fn as create_array;
+
 use crate::{
     array::Targetable,
     query_erc20::storage::public_inputs::PublicInputs,
@@ -53,7 +55,10 @@ impl LeafCircuit {
     }
 
     pub fn build(b: &mut CircuitBuilder<GoldilocksField, 2>) -> LeafWires {
+        // address of the user stored at the leaf
         let address = PackedAddressTarget::new(b);
+        // address of the query we expose as public input
+        let query_address = PackedAddressTarget::new(b);
         let [value, total_supply, reward] = [0; 3].map(|_| PackedU256Target::new(b));
 
         // C = poseidon("LEAF" || pack_u32(address) || pack_u32(value))
@@ -71,10 +76,16 @@ impl LeafCircuit {
 
         // V = R * value / totalSupply
         // TODO: U256 operations
+        let zero = b.zero();
         let fake_v = b.constants(&[GoldilocksField::ZERO; PACKED_U256_LEN]);
-        let v = PackedU256Target::from(std::array::from_fn(|i| U32Target(fake_v[i])));
-
-        PublicInputs::<GoldilocksField>::register(b, &c, &address, &v, &reward);
+        let v = PackedU256Target::from(create_array(|i| U32Target(fake_v[i])));
+        let null_result = PackedU256Target::from_array(create_array(|_| U32Target(zero)));
+        let are_addresses_equal = address.equals(b, &query_address);
+        // only output real value if user address == query address.
+        // That's a hack to allow to still have a proof when a user is not included in a block since non membership
+        // proofs will be supported only in v1.
+        let final_output = v.select(b, are_addresses_equal, &null_result);
+        PublicInputs::<GoldilocksField>::register(b, &c, &address, &final_output, &reward);
 
         LeafWires {
             address,

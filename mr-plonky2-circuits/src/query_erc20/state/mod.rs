@@ -155,10 +155,10 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
         storage_proof: &StorageInputs<Target>,
     ) -> StateWires<MAX_DEPTH> {
         // address, root, value, rewardsRate
-        let x = storage_proof.x();
-        let c = storage_proof.c();
-        let v = storage_proof.v();
-        let rewards = storage_proof.r();
+        let x = storage_proof.query_user_address();
+        let c = storage_proof.root_hash();
+        let v = storage_proof.query_results();
+        let rewards = storage_proof.query_rewards_rate();
 
         // contract address, mapping slot, length storage slot
         // block number, range
