@@ -31,6 +31,7 @@ pub mod public_inputs;
 pub mod rlp;
 pub mod storage_key;
 pub mod types;
+pub mod u256;
 pub mod utils;
 
 pub const D: usize = 2;
