@@ -1,3 +1,4 @@
+use crate::types::PackedU256Target;
 use std::array::from_fn as create_array;
 
 use plonky2::{
@@ -10,7 +11,7 @@ use crate::{keccak::OutputHash, types::PackedAddressTarget};
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
-enum Inputs<const L: usize> {
+enum Inputs {
     BlockNumber,
     Range,
     MinBlockNumber,
@@ -60,6 +61,7 @@ impl Inputs {
             + Self::SIZES[7]
             + Self::SIZES[8]
             + Self::SIZES[9]
+            + Self::SIZES[10]
     }
 
     fn range(&self) -> std::ops::Range<usize> {
@@ -74,54 +76,57 @@ impl Inputs {
 }
 
 #[derive(Clone)]
-pub struct RevelationPublicInputs<'input, T: Clone, const L: usize> {
+pub struct RevelationPublicInputs<'input, T: Clone> {
     pub inputs: &'input [T],
 }
 
-impl<'a, T: Clone + Copy, const L: usize> From<&'a [T]> for RevelationPublicInputs<'a, T, L> {
+impl<'a, T: Clone + Copy> From<&'a [T]> for RevelationPublicInputs<'a, T> {
     fn from(inputs: &'a [T]) -> Self {
         assert_eq!(inputs.len(), Self::total_len());
         Self { inputs }
     }
 }
 
-impl<'a, T: Clone + Copy, const L: usize> RevelationPublicInputs<'a, T, L> {
+impl<'a, T: Clone + Copy> RevelationPublicInputs<'a, T> {
     fn block_number_raw(&self) -> &[T] {
-        &self.inputs[Inputs::<L>::BlockNumber.range()]
+        &self.inputs[Inputs::BlockNumber.range()]
     }
     fn range_raw(&self) -> &[T] {
-        &self.inputs[Inputs::<L>::Range.range()]
+        &self.inputs[Inputs::Range.range()]
     }
     fn min_block_number_raw(&self) -> &[T] {
-        &self.inputs[Inputs::<L>::MinBlockNumber.range()]
+        &self.inputs[Inputs::MinBlockNumber.range()]
     }
     fn max_block_number_raw(&self) -> &[T] {
-        &self.inputs[Inputs::<L>::MaxBlockNumber.range()]
+        &self.inputs[Inputs::MaxBlockNumber.range()]
     }
     fn smart_contract_address_raw(&self) -> &[T] {
-        &self.inputs[Inputs::<L>::SmartContractAddress.range()]
+        &self.inputs[Inputs::SmartContractAddress.range()]
     }
     fn user_address_raw(&self) -> &[T] {
-        &self.inputs[Inputs::<L>::UserAddress.range()]
+        &self.inputs[Inputs::UserAddress.range()]
     }
     fn mapping_slot_raw(&self) -> &[T] {
-        &self.inputs[Inputs::<L>::MappingSlot.range()]
+        &self.inputs[Inputs::MappingSlot.range()]
     }
     fn mapping_slot_length_raw(&self) -> &[T] {
-        &self.inputs[Inputs::<L>::MappingSlotLength.range()]
-    }
-    fn nft_ids_raw(&self) -> &[T] {
-        &self.inputs[Inputs::<L>::NftIds.range()]
+        &self.inputs[Inputs::MappingSlotLength.range()]
     }
     fn block_header_raw(&self) -> &[T] {
-        &self.inputs[Inputs::<L>::BlockHeader.range()]
+        &self.inputs[Inputs::BlockHeader.range()]
+    }
+    fn result(&self) -> &[T] {
+        &self.inputs[Inputs::QueryResult.range()]
+    }
+    fn rewards_rate(&self) -> &[T] {
+        &self.inputs[Inputs::RewardsRate.range()]
     }
     pub const fn total_len() -> usize {
-        Inputs::<L>::total_len()
+        Inputs::total_len()
     }
 }
 
-impl<'a, const L: usize> RevelationPublicInputs<'a, Target, L> {
+impl<'a> RevelationPublicInputs<'a, Target> {
     pub fn register(
         b: &mut CircuitBuilder<GoldilocksField, 2>,
         query_block_number: Target,
@@ -132,10 +137,11 @@ impl<'a, const L: usize> RevelationPublicInputs<'a, Target, L> {
         query_user_address: &PackedAddressTarget,
         query_mapping_slot: Target,
         mapping_slot_length: Target,
-        query_nft_ids: &[U32Target; L],
         // the block hash of the latest block inserted at time of building the circuit
         // i.e. the one who corresponds to the block db proof being verified here.
         lpn_latest_block: OutputHash,
+        query_result: PackedU256Target,
+        rewards_rate: PackedU256Target,
     ) {
         b.register_public_input(query_block_number);
         b.register_public_input(query_range);
@@ -145,10 +151,9 @@ impl<'a, const L: usize> RevelationPublicInputs<'a, Target, L> {
         query_user_address.register_as_public_input(b);
         b.register_public_input(query_mapping_slot);
         b.register_public_input(mapping_slot_length);
-        for nft_id in query_nft_ids {
-            b.register_public_input(nft_id.0);
-        }
         b.register_public_inputs(&lpn_latest_block.to_targets().arr);
+        rewards_rate.register_as_public_input(b);
+        query_result.register_as_public_input(b);
     }
 
     fn block_number(&self) -> Target {
@@ -205,7 +210,7 @@ impl<'a, const L: usize> RevelationPublicInputs<'a, Target, L> {
     }
 }
 
-impl<'a, const L: usize> RevelationPublicInputs<'a, GoldilocksField, L> {
+impl<'a> RevelationPublicInputs<'a, GoldilocksField> {
     fn block_number(&self) -> GoldilocksField {
         self.block_number_raw()[0]
     }
