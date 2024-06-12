@@ -12,4 +12,3 @@ pub mod storage;
 pub use api::{CircuitInput, PublicParameters};
 #[cfg(test)]
 mod tests;
-

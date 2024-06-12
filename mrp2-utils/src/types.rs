@@ -37,6 +37,15 @@ pub type AddressTarget = Array<Target, ADDRESS_LEN>;
 /// U32 representation of an address
 pub type PackedAddressTarget = Array<U32Target, PACKED_ADDRESS_LEN>;
 
+/// Length of an Uint256 (U256 = [u8; 32])
+pub const U256_LEN: usize = 32;
+/// Length of an Uint256 in U32
+pub const PACKED_U256_LEN: usize = U256_LEN / 4;
+/// Byte representation of an Uint256
+pub type U256Target = Array<Target, U256_LEN>;
+/// U32 representation of an Uint256
+pub type PackedU256Target = Array<U32Target, PACKED_U256_LEN>;
+
 /// The length of a mapping key in bytes
 pub const MAPPING_KEY_LEN: usize = 32;
 /// Length of a mapping key when packed in u32

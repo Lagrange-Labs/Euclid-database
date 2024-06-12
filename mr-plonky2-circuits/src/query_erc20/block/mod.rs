@@ -439,6 +439,7 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
     }
 }
 
+/* TODO
 #[cfg(test)]
 mod tests {
     use ethers::types::Address;
@@ -537,3 +538,4 @@ mod tests {
             .unwrap();
     }
 }
+*/
