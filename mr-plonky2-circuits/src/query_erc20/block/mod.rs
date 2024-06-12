@@ -1,46 +1,31 @@
-use std::{
-    array::from_fn as create_array,
-    fmt::{self, Debug},
+use self::{
+    full_node::{FullNodeCircuit, FullNodeWires},
+    partial_node::{PartialNodeCircuitInputs, PartialNodeWires},
 };
-
+use crate::{
+    api::{default_config, ProofWithVK, C, D, F},
+    types::{HashOutput, PackedAddressTarget, PACKED_ADDRESS_LEN, PACKED_VALUE_LEN},
+};
+use anyhow::Result;
 use itertools::Itertools;
 use mrp2_utils::types::{PackedU256Target, PACKED_U256_LEN};
 use plonky2::{
-    field::{
-        extension::{quintic::QuinticExtension, FieldExtension},
-        goldilocks_field::GoldilocksField,
-        types::Field,
-    },
+    field::{goldilocks_field::GoldilocksField, types::Field},
     hash::hash_types::{HashOut, HashOutTarget, NUM_HASH_OUT_ELTS},
     iop::target::Target,
     plonk::{circuit_builder::CircuitBuilder, config::GenericHashOut},
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
-use plonky2_ecgfp5::{
-    curve::curve::WeierstrassPoint,
-    gadgets::curve::{CircuitBuilderEcGFp5, CurveTarget},
-};
+use plonky2_ecgfp5::curve::curve::WeierstrassPoint;
 use recursion_framework::{
     circuit_builder::{CircuitWithUniversalVerifier, CircuitWithUniversalVerifierBuilder},
     framework::RecursiveCircuits,
 };
 use serde::{Deserialize, Serialize};
-
-use crate::{
-    api::{default_config, ProofWithVK, C, D, F},
-    types::{
-        HashOutput, PackedAddressTarget, PackedValueTarget, CURVE_TARGET_LEN, PACKED_ADDRESS_LEN,
-        PACKED_VALUE_LEN,
-    },
-    utils::{convert_point_to_curve_target, convert_slice_to_curve_point},
+use std::{
+    array::from_fn as create_array,
+    fmt::{self, Debug},
 };
-
-use self::{
-    full_node::{FullNodeCircuit, FullNodeWires},
-    partial_node::{PartialNodeCircuitInputs, PartialNodeWires},
-};
-
-use anyhow::Result;
 
 pub mod full_node;
 pub mod partial_node;
@@ -219,6 +204,7 @@ impl Inputs {
             + Self::SIZES[5]
             + Self::SIZES[6]
             + Self::SIZES[7]
+            + Self::SIZES[8]
     }
 
     pub const fn len(&self) -> usize {

@@ -1,11 +1,16 @@
+use super::StateWires;
 use crate::utils::{Packer, ToFields};
+use crate::{
+    array::Array,
+    query_erc20::{
+        block::BlockPublicInputs, storage::public_inputs::PublicInputs as StorageInputs,
+    },
+};
 use crate::{query_erc20::state::CircuitInputsInternal, types::MAPPING_KEY_LEN};
-use std::array::from_fn as create_array;
-use std::iter;
-
 use ethers::types::{Address, U256};
 use mrp2_test_utils::circuit::{run_circuit, UserCircuit};
 use mrp2_utils::eth::left_pad32;
+use mrp2_utils::types::{PackedSCAddress, PACKED_ADDRESS_LEN};
 use mrp2_utils::utils::convert_u8_to_u32_slice;
 use plonky2::field::types::Sample;
 use plonky2::{
@@ -17,51 +22,55 @@ use plonky2::{
     },
     plonk::{circuit_builder::CircuitBuilder, config::PoseidonGoldilocksConfig},
 };
-use rand::{rngs::StdRng, RngCore, SeedableRng};
+use rand::{thread_rng, Rng, RngCore};
 use recursion_framework::framework_testing::TestingRecursiveCircuits;
 use serial_test::serial;
+use std::array::from_fn as create_array;
+use std::iter;
 
-use super::StateWires;
-use crate::{
-    array::Array,
-    query_erc20::{
-        block::BlockPublicInputs, storage::public_inputs::PublicInputs as StorageInputs,
-    },
-};
-use mrp2_utils::types::{PackedSCAddress, PACKED_ADDRESS_LEN};
-
-const MAX_DEPTH: usize = 3;
+type StateParameters = super::Parameters;
 type StateCircuit<const MAX_DEPTH: usize> = super::StateCircuit<MAX_DEPTH, GoldilocksField>;
 
+type C = crate::api::C;
+type F = crate::api::F;
+const D: usize = crate::api::D;
+
+const MAX_DEPTH: usize = 3;
+const NUM_STORAGE_INPUTS: usize = StorageInputs::<Target>::TOTAL_LEN;
+
 #[test]
-fn prove_and_verify_state_circuit_erc() {
-    let _ = run_state_circuit(0xdead);
-}
-
-fn random_address(rng: &mut StdRng) -> Address {
-    let mut address = Address::zero();
-    rng.fill_bytes(&mut address.as_bytes_mut());
-    address
-}
-
-pub(crate) fn run_state_circuit<'a>(seed: u64) -> Vec<GoldilocksField> {
-    let rng = &mut StdRng::seed_from_u64(seed);
+fn test_query_erc20_state_circuit() {
+    let mut rng = thread_rng();
     run_state_circuit_with_slot_and_addresses(
-        seed,
-        rng.next_u32(),
-        rng.next_u32(),
-        random_address(rng),
-        random_address(rng),
-    )
+        rng.gen::<u32>(),
+        rng.gen::<u32>(),
+        Address::random(),
+        Address::random(),
+    );
 }
 
-pub(crate) fn run_state_circuit_with_slot_and_addresses<'a>(
-    seed: u64,
+#[test]
+#[serial]
+fn test_query_erc20_state_parameters() {
+    let testing_framework = TestingRecursiveCircuits::<F, C, D, NUM_STORAGE_INPUTS>::default();
+
+    let params = StateParameters::build(testing_framework.get_recursive_circuit_set());
+
+    let inputs = generate_inputs_for_state_circuit(&testing_framework, None, None, None, None);
+
+    let proof = params
+        .generate_proof(testing_framework.get_recursive_circuit_set(), inputs)
+        .unwrap();
+
+    params.verify_proof(&proof).unwrap();
+}
+
+fn run_state_circuit_with_slot_and_addresses(
     slot_length: u32,
     mapping_slot: u32,
     sc_address: Address,
     user_address: Address,
-) -> Vec<GoldilocksField> {
+) {
     let root = create_array(|_| GoldilocksField::rand());
     let value = U256::from_dec_str("145648").unwrap();
     let rewards_rate = U256::from_dec_str("34").unwrap();
@@ -71,8 +80,8 @@ pub(crate) fn run_state_circuit_with_slot_and_addresses<'a>(
 
     let inputs = StorageInputs::from_parts(&root, &user_address_fields, value, rewards_rate);
     let storage_pi = StorageInputs::from_slice(&inputs);
+
     let circuit = TestStateCircuit::<MAX_DEPTH>::new_from_slot_and_addr(
-        seed,
         slot_length,
         mapping_slot,
         sc_address,
@@ -87,10 +96,9 @@ pub(crate) fn run_state_circuit_with_slot_and_addresses<'a>(
         pi.smart_contract_address(),
         &circuit.smart_contract_address.arr
     );
+    assert_eq!(pi.user_address(), user_address_fields,);
     assert_eq!(pi.mapping_slot(), circuit.mapping_slot);
     assert_eq!(pi.mapping_slot_length(), circuit.length_slot);
-
-    proof.public_inputs.to_owned()
 }
 
 #[derive(Debug, Clone)]
@@ -99,7 +107,7 @@ pub struct TestProvenanceWires {
     provenance: StateWires<MAX_DEPTH>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct TestStateCircuit<const MAX_DEPTH: usize> {
     storage_values: Vec<GoldilocksField>,
     c: StateCircuit<MAX_DEPTH>,
@@ -112,13 +120,12 @@ pub struct TestStateCircuit<const MAX_DEPTH: usize> {
 
 impl<const MAX_DEPTH: usize> TestStateCircuit<MAX_DEPTH> {
     pub fn new_from_slot_and_addr(
-        seed: u64,
         length_slot: u32,
         mapping_slot: u32,
         smart_contract_address: Address,
         storage: &StorageInputs<GoldilocksField>,
     ) -> Self {
-        let rng = &mut StdRng::seed_from_u64(seed);
+        let mut rng = thread_rng();
 
         let smart_contract_address =
             PackedSCAddress::try_from(smart_contract_address.as_bytes().pack().to_fields())
@@ -141,7 +148,6 @@ impl<const MAX_DEPTH: usize> TestStateCircuit<MAX_DEPTH> {
 
         let positions: Vec<_> = (0..MAX_DEPTH).map(|_| rng.next_u32() & 1 == 1).collect();
 
-        // FIXME use crate::state::lpn::state_leaf_hash
         let preimage: Vec<_> = smart_contract_address
             .arr
             .iter()
@@ -236,21 +242,15 @@ impl UserCircuit<GoldilocksField, 2> for TestStateCircuit<MAX_DEPTH> {
     }
 }
 
-type F = crate::api::F;
-type C = crate::api::C;
-const D: usize = crate::api::D;
-type StateParameters = super::Parameters;
-const NUM_STORAGE_INPUTS: usize = StorageInputs::<Target>::TOTAL_LEN;
-
-pub(crate) fn generate_inputs_for_state_circuit(
+fn generate_inputs_for_state_circuit(
     testing_framework: &TestingRecursiveCircuits<F, C, D, NUM_STORAGE_INPUTS>,
-    seed: u64,
     length_slot: Option<u32>,
     mapping_slot: Option<u32>,
     smart_contract_address: Option<Address>,
     user_address: Option<Address>,
 ) -> CircuitInputsInternal {
-    let rng = &mut StdRng::seed_from_u64(seed);
+    let mut rng = thread_rng();
+
     let length_slot = if let Some(slot) = length_slot {
         slot
     } else {
@@ -264,12 +264,12 @@ pub(crate) fn generate_inputs_for_state_circuit(
     let smart_contract_address = if let Some(address) = smart_contract_address {
         address
     } else {
-        random_address(rng)
+        Address::random()
     };
     let user_address = if let Some(address) = user_address {
         address
     } else {
-        random_address(rng)
+        Address::random()
     };
     let root = create_array(|_| GoldilocksField::rand());
     let value = U256::from_dec_str("145648").unwrap();
@@ -290,7 +290,6 @@ pub(crate) fn generate_inputs_for_state_circuit(
         .into();
 
     let state_circuit = TestStateCircuit::new_from_slot_and_addr(
-        seed,
         length_slot,
         mapping_slot,
         smart_contract_address,
@@ -303,20 +302,4 @@ pub(crate) fn generate_inputs_for_state_circuit(
         storage_proof,
         testing_framework.get_recursive_circuit_set(),
     )
-}
-
-#[test]
-#[serial]
-fn test_state_circuit_parameters() {
-    let testing_framework = TestingRecursiveCircuits::<F, C, D, NUM_STORAGE_INPUTS>::default();
-
-    let params = StateParameters::build(testing_framework.get_recursive_circuit_set());
-
-    let inputs = generate_inputs_for_state_circuit(&testing_framework, 42, None, None, None, None);
-
-    let proof = params
-        .generate_proof(testing_framework.get_recursive_circuit_set(), inputs)
-        .unwrap();
-
-    params.verify_proof(&proof).unwrap();
 }

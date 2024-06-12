@@ -116,7 +116,6 @@ impl<'a> PublicInputs<'a, GoldilocksField> {
 mod test {
     use super::*;
     impl<'a> PublicInputs<'a, GoldilocksField> {
-
         /// Writes the parts of the public inputs into the provided target array.
         pub fn from_parts(
             root_hash: &[GoldilocksField; PublicInputs::<()>::C_LEN],
