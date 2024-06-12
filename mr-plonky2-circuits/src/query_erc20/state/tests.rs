@@ -67,13 +67,13 @@ fn test_query_erc20_state_parameters() {
     params.verify_proof(&proof).unwrap();
 }
 
-fn run_state_circuit_with_slot_and_addresses(
+pub(crate) fn run_state_circuit_with_slot_and_addresses(
     block_number: u32,
     slot_length: u32,
     mapping_slot: u32,
     sc_address: Address,
     user_address: Address,
-) {
+) -> Vec<GoldilocksField> {
     let root = create_array(|_| GoldilocksField::rand());
     let value = U256::from_dec_str("145648").unwrap();
     let rewards_rate = U256::from_dec_str("34").unwrap();
@@ -100,9 +100,11 @@ fn run_state_circuit_with_slot_and_addresses(
         pi.smart_contract_address(),
         &circuit.smart_contract_address.arr
     );
-    assert_eq!(pi.user_address(), user_address_fields,);
+    assert_eq!(pi.user_address(), user_address_fields);
     assert_eq!(pi.mapping_slot(), circuit.mapping_slot);
     assert_eq!(pi.mapping_slot_length(), circuit.length_slot);
+
+    proof.public_inputs.to_owned()
 }
 
 #[derive(Debug, Clone)]
