@@ -187,8 +187,8 @@ impl Inputs {
         1,
         1,
         NUM_HASH_OUT_ELTS,
-        PackedAddressTarget::LEN,
-        PackedAddressTarget::LEN,
+        PACKED_ADDRESS_LEN,
+        PACKED_ADDRESS_LEN,
         1,
         1,
         PACKED_U256_LEN, // result
@@ -374,10 +374,11 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
         range: GoldilocksField,
         root: HashOut<GoldilocksField>,
         smart_contract_address: &[GoldilocksField; PACKED_ADDRESS_LEN],
-        user_address: &[GoldilocksField; PACKED_VALUE_LEN],
+        user_address: &[GoldilocksField; PACKED_ADDRESS_LEN],
         mapping_slot: GoldilocksField,
         storage_slot_length: GoldilocksField,
-        digest: WeierstrassPoint,
+        query_results: &[GoldilocksField; PACKED_U256_LEN],
+        rewards_rate: &[GoldilocksField; PACKED_U256_LEN],
     ) -> [GoldilocksField; Self::total_len()] {
         let mut inputs = vec![];
         inputs.push(block_number);
@@ -387,9 +388,13 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
         inputs.extend_from_slice(user_address.as_slice());
         inputs.push(mapping_slot);
         inputs.push(storage_slot_length);
-        inputs.extend_from_slice(&digest.x.0);
-        inputs.extend_from_slice(&digest.y.0);
-        inputs.push(GoldilocksField::from_bool(digest.is_inf));
+        inputs.extend_from_slice(query_results);
+        inputs.extend_from_slice(rewards_rate);
+        println!(
+            "inputs size {} vs total_len {}",
+            inputs.len(),
+            Self::total_len()
+        );
         inputs.try_into().unwrap()
     }
     pub fn block_number(&self) -> GoldilocksField {

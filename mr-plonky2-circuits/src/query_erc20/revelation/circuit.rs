@@ -27,6 +27,7 @@ pub(crate) struct RevelationWires {
 
 #[derive(Clone, Debug)]
 pub struct RevelationCircuit {
+    // parameters of the query
     pub(crate) query_min_block_number: usize,
     pub(crate) query_max_block_number: usize,
 }
@@ -36,7 +37,6 @@ impl RevelationCircuit {
         db_proof: BlockDBPublicInputs<Target>,
         root_proof: BlockQueryPublicInputs<Target>,
     ) -> RevelationWires {
-        let t = b._true();
         // Create the empty root constant matching the given MAX_DEPTH of the Poseidon storage tree
         let empty_root = HashOutTarget::from_vec(
             empty_merkle_root::<GoldilocksField, 2, MAX_DEPTH>()
@@ -57,24 +57,19 @@ impl RevelationCircuit {
         let min_block_in_db = db_proof.first_block_number();
         let max_block_in_db = db_proof.block_number();
 
-        // Add 1 to the bounds because query says it's < and > strict
-        let one = b.one();
-        let query_min_plus_1 = b.add(query_min_block_number, one);
-        let query_max_minus_1 = b.sub(query_max_block_number, one);
-
-        // if query_min < min_block_in_db -> assert min_bound == B_0
-        // else -> 	assert min_bound == B_MIN + 1
+        // if B_MIN < min_block_in_db -> assert min_bound == B_0
+        // else -> 	assert min_bound == B_MIN
         // where B_MIN is the query paramter, B_0 is the first block inserted in db, and min_bound is
         // range looked over for our db.
         let too_small_min = less_than(b, query_min_block_number, min_block_in_db.0, 32);
-        let right_side = b.select(too_small_min, min_block_in_db.0, query_min_plus_1);
+        let right_side = b.select(too_small_min, min_block_in_db.0, query_min_block_number);
         b.connect(computed_min_block, right_side);
 
         // if B_MAX > B_i: 	assert root_proof.public_inputs[B] == B_i
-        // else : assert root_proof.public_inputs[B] == B_MAX - 1
+        // else : assert root_proof.public_inputs[B] == B_MAX
         // where B_i is the latest block inserted in our db and B_MAX is the block parameter of the query
         let too_large_max = less_than(b, max_block_in_db.0, query_max_block_number, 32);
-        let right_side = b.select(too_large_max, max_block_in_db.0, query_max_minus_1);
+        let right_side = b.select(too_large_max, max_block_in_db.0, query_max_block_number);
         b.connect(root_proof.block_number(), right_side);
 
         RevelationPublicInputs::<Target>::register(

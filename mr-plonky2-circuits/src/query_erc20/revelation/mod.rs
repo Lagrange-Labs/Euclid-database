@@ -200,6 +200,7 @@ mod test {
     use anyhow::Result;
     use ethers::types::Address;
     use itertools::Itertools;
+    use mrp2_utils::types::PACKED_U256_LEN;
     use plonky2::{
         field::{
             goldilocks_field::GoldilocksField,
@@ -222,7 +223,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn test_revelation_api() -> Result<()> {
+    fn test_revelation_api_erc20() -> Result<()> {
         // Generate a fake query2/block circuit set
         let query2_testing_framework =
             TestingRecursiveCircuits::<F, C, D, QUERY_ERC_BLOCK_NUM_IO>::default();
@@ -235,7 +236,6 @@ mod test {
 
         let block_db_vk = block_db_testing_framework.verifier_data_for_input_proofs::<1>()[0];
         // Build the params
-        const L: usize = 2;
         const BLOCK_DB_DEPTH: usize = 2;
         let params = super::Parameters::<BLOCK_DB_DEPTH>::build(
             query2_block_circuit_set,
@@ -271,9 +271,12 @@ mod test {
 
         // Generate a fake query2/block proof, taking some inputs from the block db
         // block range asked is just one block less than latest block in db
+        // note these are the range the proofs would have computed. These needs
+        // to be checked against the range of the query and make sure they match,
+        // that's the purpose of the revelation circuit.
         let query_max_number = block_db_pi.block_number_data() - F::ONE;
-        let query_range = F::from_canonical_usize(10);
-        let query_min_number = query_max_number - query_range + F::ONE;
+        let query_range = F::from_canonical_usize(50);
+        let query_min_number = query_max_number - query_range;
         let query_root = HashOut {
             elements: block_db_pi.root_data().try_into().unwrap(),
         };
@@ -281,18 +284,8 @@ mod test {
         let user_address = Address::random();
         let mapping_slot = F::rand();
         let length_slot = F::rand();
-        let mapping_keys = (0..L)
-            .map(|_| left_pad::<MAPPING_KEY_LEN>(&[thread_rng().gen::<u8>()]))
-            .collect::<Vec<_>>();
-        let packed_field_mks = mapping_keys
-            .iter()
-            .map(|x| x.pack().to_fields())
-            .collect::<Vec<_>>();
-        let digests = packed_field_mks
-            .iter()
-            .map(|i| group_hashing::map_to_curve_point(i))
-            .collect::<Vec<_>>();
-        let single_digest = group_hashing::add_curve_point(&digests);
+        let rewards_rate = [F::ZERO; PACKED_U256_LEN];
+        let query_results = [F::ZERO; PACKED_U256_LEN];
         let pis = BlockPublicInputs::from_parts(
             query_max_number,
             query_range,
@@ -303,14 +296,16 @@ mod test {
                 .to_fields()
                 .try_into()
                 .unwrap(),
-            &left_pad32(user_address.as_fixed_bytes())
+            &user_address
+                .as_fixed_bytes()
                 .pack()
                 .to_fields()
                 .try_into()
                 .unwrap(),
             mapping_slot,
             length_slot,
-            single_digest.to_weierstrass(),
+            &query_results,
+            &rewards_rate,
         );
         let query2_block_proof = query2_testing_framework
             .generate_input_proofs([pis])
@@ -324,6 +319,8 @@ mod test {
         .serialize()?;
         let block_db_buff = serialize_proof(block_db_proof)?;
         let revelation_inputs = RevelationRecursiveInput::new(
+            // we set on purpose that the query parameters and the range we computed
+            // are the same, as they should be since we have to look at all the blocks
             query_min_number.to_canonical_u64() as usize,
             query_max_number.to_canonical_u64() as usize,
             q2_proof_buff,
