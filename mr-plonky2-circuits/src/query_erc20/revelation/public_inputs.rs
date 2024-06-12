@@ -1,6 +1,7 @@
 use crate::types::PackedU256Target;
 use std::array::from_fn as create_array;
 
+use mrp2_utils::u256::{CircuitBuilderU256, UInt256Target};
 use plonky2::{
     field::goldilocks_field::GoldilocksField, iop::target::Target,
     plonk::circuit_builder::CircuitBuilder,
@@ -140,8 +141,8 @@ impl<'a> RevelationPublicInputs<'a, Target> {
         // the block hash of the latest block inserted at time of building the circuit
         // i.e. the one who corresponds to the block db proof being verified here.
         lpn_latest_block: OutputHash,
-        query_result: PackedU256Target,
-        rewards_rate: PackedU256Target,
+        query_result: UInt256Target,
+        rewards_rate: UInt256Target,
     ) {
         b.register_public_input(query_block_number);
         b.register_public_input(query_range);
@@ -152,8 +153,8 @@ impl<'a> RevelationPublicInputs<'a, Target> {
         b.register_public_input(query_mapping_slot);
         b.register_public_input(mapping_slot_length);
         b.register_public_inputs(&lpn_latest_block.to_targets().arr);
-        rewards_rate.register_as_public_input(b);
-        query_result.register_as_public_input(b);
+        b.register_public_input_u256(&rewards_rate);
+        b.register_public_input_u256(&query_result);
     }
 
     fn block_number(&self) -> Target {

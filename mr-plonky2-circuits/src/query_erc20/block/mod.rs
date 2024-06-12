@@ -8,7 +8,10 @@ use crate::{
 };
 use anyhow::Result;
 use itertools::Itertools;
-use mrp2_utils::types::{PackedU256Target, PACKED_U256_LEN};
+use mrp2_utils::{
+    types::{PackedU256Target, PACKED_U256_LEN},
+    u256::{CircuitBuilderU256, UInt256Target},
+};
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::hash_types::{HashOut, HashOutTarget, NUM_HASH_OUT_ELTS},
@@ -333,14 +336,14 @@ impl<'a> BlockPublicInputs<'a, Target> {
         self.storage_slot_length_raw()[0]
     }
 
-    pub(crate) fn query_results(&self) -> PackedU256Target {
+    pub(crate) fn query_results(&self) -> UInt256Target {
         let raw = self.query_results_raw();
-        PackedU256Target::from_array(create_array(|i| U32Target(raw[i])))
+        UInt256Target::new_from_target_limbs(&raw).expect("invalid length of slice inputs")
     }
 
-    pub(crate) fn rewards_rate(&self) -> PackedU256Target {
+    pub(crate) fn rewards_rate(&self) -> UInt256Target {
         let raw = self.rewards_rate_raw();
-        PackedU256Target::from_array(create_array(|i| U32Target(raw[i])))
+        UInt256Target::new_from_target_limbs(&raw).expect("invalid length of slice inputs")
     }
 
     pub fn register(
@@ -352,8 +355,8 @@ impl<'a> BlockPublicInputs<'a, Target> {
         user_address: &PackedAddressTarget,
         mapping_slot: Target,
         mapping_slot_length: Target,
-        results: PackedU256Target,
-        rewards_rate: PackedU256Target,
+        results: UInt256Target,
+        rewards_rate: UInt256Target,
     ) {
         b.register_public_input(block_number);
         b.register_public_input(range);
@@ -362,8 +365,8 @@ impl<'a> BlockPublicInputs<'a, Target> {
         user_address.register_as_public_input(b);
         b.register_public_input(mapping_slot);
         b.register_public_input(mapping_slot_length);
-        results.register_as_public_input(b);
-        rewards_rate.register_as_public_input(b);
+        b.register_public_input_u256(&results);
+        b.register_public_input_u256(&rewards_rate);
     }
 }
 

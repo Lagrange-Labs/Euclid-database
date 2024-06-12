@@ -3,7 +3,7 @@ use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use std::array::from_fn as create_array;
 
 use itertools::Itertools;
-use mrp2_utils::types::PackedU256Target;
+use mrp2_utils::{types::PackedU256Target, u256::CircuitBuilderU256};
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::{hash_types::NUM_HASH_OUT_ELTS, poseidon::PoseidonHash},
@@ -63,25 +63,9 @@ impl FullNodeCircuit {
         let new_range_min_bound = b.sub(inputs[0].block_number(), inputs[0].range());
         let new_upper_block = inputs[1].block_number();
         let new_range_length = b.sub(new_upper_block, new_range_min_bound);
-        // TODO: replace by proper uint256 arithmetic when we have gadget
-        let new_result = b.add(
-            inputs[0].query_results_raw()[0],
-            inputs[1].query_results_raw()[0],
-        );
-        let new_result = PackedU256Target {
-            arr: create_array(|i| {
-                if i == 0 {
-                    U32Target(new_result)
-                } else {
-                    U32Target(b.zero())
-                }
-            }),
-        };
-        // TODO replace by proper UINT256 equality
-        b.connect(
-            inputs[0].rewards_rate_raw()[0],
-            inputs[1].rewards_rate_raw()[0],
-        );
+        // v0 don't deal yet with overflow
+        let (new_result, _) = b.add_u256(&inputs[0].query_results(), &inputs[1].query_results());
+        b.enforce_equal_u256(&inputs[0].rewards_rate(), &inputs[1].rewards_rate());
 
         BlockPublicInputs::<Target>::register(
             b,
