@@ -44,6 +44,7 @@ fn test_query_erc20_state_circuit() {
     run_state_circuit_with_slot_and_addresses(
         rng.gen::<u32>(),
         rng.gen::<u32>(),
+        rng.gen::<u32>(),
         Address::random(),
         Address::random(),
     );
@@ -56,7 +57,8 @@ fn test_query_erc20_state_parameters() {
 
     let params = StateParameters::build(testing_framework.get_recursive_circuit_set());
 
-    let inputs = generate_inputs_for_state_circuit(&testing_framework, None, None, None, None);
+    let inputs =
+        generate_inputs_for_state_circuit(&testing_framework, None, None, None, None, None);
 
     let proof = params
         .generate_proof(testing_framework.get_recursive_circuit_set(), inputs)
@@ -66,6 +68,7 @@ fn test_query_erc20_state_parameters() {
 }
 
 fn run_state_circuit_with_slot_and_addresses(
+    block_number: u32,
     slot_length: u32,
     mapping_slot: u32,
     sc_address: Address,
@@ -81,7 +84,8 @@ fn run_state_circuit_with_slot_and_addresses(
     let inputs = StorageInputs::from_parts(&root, &user_address_fields, value, rewards_rate);
     let storage_pi = StorageInputs::from_slice(&inputs);
 
-    let circuit = TestStateCircuit::<MAX_DEPTH>::new_from_slot_and_addr(
+    let circuit = TestStateCircuit::<MAX_DEPTH>::new(
+        block_number,
         slot_length,
         mapping_slot,
         sc_address,
@@ -119,7 +123,8 @@ pub struct TestStateCircuit<const MAX_DEPTH: usize> {
 }
 
 impl<const MAX_DEPTH: usize> TestStateCircuit<MAX_DEPTH> {
-    pub fn new_from_slot_and_addr(
+    pub fn new(
+        block_number: u32,
         length_slot: u32,
         mapping_slot: u32,
         smart_contract_address: Address,
@@ -133,7 +138,7 @@ impl<const MAX_DEPTH: usize> TestStateCircuit<MAX_DEPTH> {
 
         let mapping_slot = GoldilocksField::from_canonical_u32(mapping_slot);
         let length_slot = GoldilocksField::from_canonical_u32(length_slot);
-        let block_number = GoldilocksField::from_canonical_u32(rng.next_u32());
+        let block_number = GoldilocksField::from_canonical_u32(block_number);
         let depth = GoldilocksField::from_canonical_u32(MAX_DEPTH as u32);
 
         let siblings: Vec<_> = (0..MAX_DEPTH)
@@ -242,8 +247,9 @@ impl UserCircuit<GoldilocksField, 2> for TestStateCircuit<MAX_DEPTH> {
     }
 }
 
-fn generate_inputs_for_state_circuit(
+pub(crate) fn generate_inputs_for_state_circuit(
     testing_framework: &TestingRecursiveCircuits<F, C, D, NUM_STORAGE_INPUTS>,
+    block_number: Option<u32>,
     length_slot: Option<u32>,
     mapping_slot: Option<u32>,
     smart_contract_address: Option<Address>,
@@ -251,6 +257,11 @@ fn generate_inputs_for_state_circuit(
 ) -> CircuitInputsInternal {
     let mut rng = thread_rng();
 
+    let block_number = if let Some(block_number) = block_number {
+        block_number
+    } else {
+        rng.next_u32()
+    };
     let length_slot = if let Some(slot) = length_slot {
         slot
     } else {
@@ -289,7 +300,8 @@ fn generate_inputs_for_state_circuit(
     )
         .into();
 
-    let state_circuit = TestStateCircuit::new_from_slot_and_addr(
+    let state_circuit = TestStateCircuit::new(
+        block_number,
         length_slot,
         mapping_slot,
         smart_contract_address,

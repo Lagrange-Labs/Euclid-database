@@ -54,10 +54,9 @@ impl FullNodeCircuit {
             inputs[1].mapping_slot_length(),
         );
 
-        //inputs[0].max + 1 == children_proof[1].public_inputs[B_min];
+        // block_number[0] == block_number[1] - range
         let right_min = b.sub(inputs[1].block_number(), inputs[1].range());
-        let one = b.one();
-        let left_max = b.add(inputs[0].block_number(), one);
+        let left_max = inputs[0].block_number();
         b.connect(left_max, right_min);
 
         let root = b.hash_n_to_hash_no_pad::<PoseidonHash>(Vec::from(to_hash.arr));

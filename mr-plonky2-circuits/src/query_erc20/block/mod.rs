@@ -421,7 +421,6 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
     }
 }
 
-/* TODO
 #[cfg(test)]
 mod tests {
     use ethers::types::Address;
@@ -446,8 +445,9 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_block_circuit_api() {
+    fn test_query_erc20_block_circuit_api() {
         const NUM_STORAGE_INPUTS: usize = StorageInputs::<Target>::TOTAL_LEN;
+        const BLOCK_NUMBER: u32 = 123456;
         const LENGTH_SLOT: u32 = 42;
         const MAPPING_SLOT: u32 = 24;
         let smart_contract_address = Address::random();
@@ -460,7 +460,7 @@ mod tests {
 
         let left_leaf_io = generate_inputs_for_state_circuit(
             &testing_framework,
-            0xdead,
+            Some(BLOCK_NUMBER),
             Some(LENGTH_SLOT),
             Some(MAPPING_SLOT),
             Some(smart_contract_address),
@@ -469,7 +469,7 @@ mod tests {
 
         let right_leaf_io = generate_inputs_for_state_circuit(
             &testing_framework,
-            0xbeef,
+            Some(BLOCK_NUMBER + 1),
             Some(LENGTH_SLOT),
             Some(MAPPING_SLOT),
             Some(smart_contract_address),
@@ -520,4 +520,3 @@ mod tests {
             .unwrap();
     }
 }
-*/

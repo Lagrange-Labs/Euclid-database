@@ -85,7 +85,7 @@ impl<'a> UserCircuit<F, D> for TestInnerNodeCircuit<'a> {
 }
 
 #[test]
-fn test_storage_leaf_circuit() {
+fn test_query_erc20_storage_leaf_circuit() {
     let mut rng = thread_rng();
     let address = Address::random();
     let [value, total_supply, reward] = [0; 3].map(|_| U256(rng.gen::<[u64; 4]>()));
@@ -127,7 +127,7 @@ fn test_storage_leaf_circuit() {
 }
 
 #[test]
-fn test_storage_inner_node_circuit() {
+fn test_query_erc20_storage_inner_node_circuit() {
     let mut rng = thread_rng();
     let child_pi_slice = &rng
         .gen::<[u32; PublicInputs::<Target>::TOTAL_LEN]>()
@@ -180,7 +180,7 @@ fn test_storage_inner_node_circuit() {
 }
 
 #[test]
-fn test_storage_api() {
+fn test_query_erc20_storage_api() {
     let params = Parameters::build();
 
     let mut rng = thread_rng();
