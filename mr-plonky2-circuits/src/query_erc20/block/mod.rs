@@ -430,6 +430,10 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
         self.storage_slot_length_raw()[0]
     }
 
+    pub(crate) fn rewards_rate(&self) -> U256 {
+        U256::from_little_endian(&convert_u32_fields_to_u8_vec(&self.rewards_rate_raw()))
+    }
+
     pub(crate) fn query_results(&self) -> U256 {
         U256::from_little_endian(&convert_u32_fields_to_u8_vec(&self.query_results_raw()))
     }

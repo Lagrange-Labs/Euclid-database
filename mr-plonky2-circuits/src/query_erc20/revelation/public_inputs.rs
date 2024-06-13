@@ -1,6 +1,7 @@
 use crate::types::PackedU256Target;
 use std::array::from_fn as create_array;
 
+use ethers::prelude::U256;
 use mrp2_utils::u256::{CircuitBuilderU256, UInt256Target};
 use plonky2::{
     field::goldilocks_field::GoldilocksField, iop::target::Target,
@@ -8,7 +9,7 @@ use plonky2::{
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
 
-use crate::{keccak::OutputHash, types::PackedAddressTarget};
+use crate::{keccak::OutputHash, types::PackedAddressTarget, utils::convert_u32_fields_to_u8_vec};
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
@@ -215,7 +216,7 @@ impl<'a> RevelationPublicInputs<'a, Target> {
 }
 
 impl<'a> RevelationPublicInputs<'a, GoldilocksField> {
-    fn block_number(&self) -> GoldilocksField {
+    pub(crate) fn block_number(&self) -> GoldilocksField {
         self.block_number_raw()[0]
     }
 
@@ -247,12 +248,14 @@ impl<'a> RevelationPublicInputs<'a, GoldilocksField> {
         self.mapping_slot_length_raw()[0]
     }
 
-    pub(crate) fn query_results(&self) -> &[GoldilocksField] {
-        self.query_results()
+    pub(crate) fn query_results(&self) -> U256 {
+        U256::from_little_endian(&convert_u32_fields_to_u8_vec(&self.query_results_raw()))
     }
 
-    pub(crate) fn rewards_rate(&self) -> &[GoldilocksField] {
-        self.rewards_rate()
+    pub(crate) fn rewards_rate(&self) -> U256 {
+        U256::from_little_endian(&convert_u32_fields_to_u8_vec(
+            &self.query_rewards_rate_raw(),
+        ))
     }
 
     pub(crate) fn block_header(&self) -> &[GoldilocksField] {

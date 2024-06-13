@@ -4,12 +4,16 @@ use super::{
         partial_node::{PartialNodeCircuit, PartialNodeWires},
         BlockPublicInputs as BlockQueryPublicInputs,
     },
+    revelation::{
+        circuit::{RevelationCircuit, RevelationWires},
+        RevelationPublicInputs,
+    },
     state::tests::run_state_circuit_with_slot_and_addresses,
-    // revelation::circuit::{RevelationCircuit, RevelationWires},
 };
-use crate::block::public_inputs::PublicInputs as BlockDBPublicInputs;
 use crate::{
-    block::empty_merkle_root, keccak::PACKED_HASH_LEN, types::MAPPING_KEY_LEN,
+    block::{empty_merkle_root, public_inputs::PublicInputs as BlockDBPublicInputs},
+    keccak::PACKED_HASH_LEN,
+    types::MAPPING_KEY_LEN,
     utils::convert_u8_to_u32_slice,
 };
 use ethers::types::Address;
@@ -87,18 +91,14 @@ impl UserCircuit<F, D> for PartialNodeCircuitValidator<'_> {
     }
 }
 
-/* TODO
-
 #[derive(Clone, Debug)]
-struct RevelationCircuitValidator<'a, const L: usize, const MAX_DEPTH: usize> {
-    validated: RevelationCircuit<L>,
+struct RevelationCircuitValidator<'a, const MAX_DEPTH: usize> {
+    validated: RevelationCircuit,
     db_proof: BlockDBPublicInputs<'a, F>,
     root_proof: BlockQueryPublicInputs<'a, F>,
 }
-impl<const L: usize, const MAX_DEPTH: usize> UserCircuit<F, D>
-    for RevelationCircuitValidator<'_, L, MAX_DEPTH>
-{
-    type Wires = (RevelationWires<L>, Vec<Target>, Vec<Target>);
+impl<const MAX_DEPTH: usize> UserCircuit<F, D> for RevelationCircuitValidator<'_, MAX_DEPTH> {
+    type Wires = (RevelationWires, Vec<Target>, Vec<Target>);
 
     fn build(c: &mut CircuitBuilder<F, D>) -> Self::Wires {
         let db_proof_io = c.add_virtual_targets(BlockDBPublicInputs::<Target>::TOTAL_LEN);
@@ -107,7 +107,7 @@ impl<const L: usize, const MAX_DEPTH: usize> UserCircuit<F, D>
         let root_proof_io = c.add_virtual_targets(BlockQueryPublicInputs::<Target>::total_len());
         let root_proof_pi = BlockQueryPublicInputs::<Target>::from(root_proof_io.as_slice());
 
-        let wires = RevelationCircuit::<L>::build::<MAX_DEPTH>(c, db_proof_pi, root_proof_pi);
+        let wires = RevelationCircuit::build::<MAX_DEPTH>(c, db_proof_pi, root_proof_pi);
         (wires, db_proof_io, root_proof_io)
     }
 
@@ -117,7 +117,6 @@ impl<const L: usize, const MAX_DEPTH: usize> UserCircuit<F, D>
         self.validated.assign(pw, &wires.0);
     }
 }
-*/
 
 const EMPTY_NFT_ID: [u8; MAPPING_KEY_LEN] = [0u8; MAPPING_KEY_LEN];
 
@@ -130,7 +129,6 @@ const EMPTY_NFT_ID: [u8; MAPPING_KEY_LEN] = [0u8; MAPPING_KEY_LEN];
 /// └── Untouched sub-tree - hash == Poseidon("ernesto")
 #[test]
 fn test_query_erc20_main_api() {
-    const L: usize = 4;
     const SLOT_LENGTH: u32 = 9;
     const MAX_DEPTH: usize = 12;
     const MAPPING_SLOT: u32 = 48372;
@@ -184,8 +182,8 @@ fn test_query_erc20_main_api() {
     let last_block = root_proof.block_number();
     // we say the first block number generated is the last block - the range - some constant
     // i.e. the database have been running for a while before
-    let first_block = root_proof.block_number() - root_proof.range() + F::from_canonical_u8(34);
-    // A rendom value for the block header
+    let first_block = root_proof.block_number() - root_proof.range() - F::from_canonical_u8(34);
+    // A random value for the block header
     let block_header: [F; PACKED_HASH_LEN] = std::array::from_fn(F::from_canonical_usize);
 
     let block_data = BlockDBPublicInputs::from_parts(
@@ -197,90 +195,40 @@ fn test_query_erc20_main_api() {
     );
     let db_proof = BlockDBPublicInputs::<F>::from(block_data.as_slice());
 
-    // These are the _query_ min and max range, NOT necessarily the range aggregated
-    // we can choose anything as long as they satisfy the constraints when aggregating
-    // query_min >= min_block during aggregation
-    // query_max <= max_block during aggregation
-    let query_min_block_number =
-        root_proof.block_number() - root_proof.range() - GoldilocksField::ONE;
-    let query_max_block_number = root_proof.block_number() + GoldilocksField::ONE;
+    let query_min_block_number = root_proof.block_number() - root_proof.range();
+    let query_max_block_number = root_proof.block_number();
 
-    /* TODO
+    let revelation_circuit = RevelationCircuit {
+        query_min_block_number: query_min_block_number.to_canonical_u64() as usize,
+        query_max_block_number: query_max_block_number.to_canonical_u64() as usize,
+    };
 
-        let num_entries = 2;
-        // entries sorted !
-        assert!(
-            convert_u8_to_u32_slice(&right_value)
-                .last()
-                .cloned()
-                .unwrap()
-                < convert_u8_to_u32_slice(&left_value)
-                    .last()
-                    .cloned()
-                    .unwrap()
-        );
-        let nft_ids = [right_value, left_value, EMPTY_NFT_ID, EMPTY_NFT_ID];
-        let packed_nft_ids = nft_ids
-            .iter()
-            .map(|v| convert_u8_to_u32_slice(v).try_into().unwrap())
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
+    let final_proof = run_circuit::<F, D, C, _>(RevelationCircuitValidator::<MAX_DEPTH> {
+        validated: revelation_circuit,
+        db_proof: db_proof.clone(),
+        root_proof: root_proof.clone(),
+    });
+    let pi = RevelationPublicInputs::<_> {
+        inputs: final_proof.public_inputs.as_slice(),
+    };
 
-        let revelation_circuit = RevelationCircuit::<L> {
-            packed_keys: packed_nft_ids,
-            num_entries,
-            query_min_block_number: query_min_block_number.to_canonical_u64() as usize,
-            query_max_block_number: query_max_block_number.to_canonical_u64() as usize,
-        };
-
-        let final_proof = run_circuit::<F, D, C, _>(RevelationCircuitValidator::<L, MAX_DEPTH> {
-            validated: revelation_circuit,
-            db_proof,
-            root_proof: root_proof.clone(),
-        });
-        let pi = RevelationPublicInputs::<_, L> {
-            inputs: final_proof.public_inputs.as_slice(),
-        };
-
-        let padded_address = &left_leaf_pi.user_address();
-        let address = &padded_address[padded_address.len() - 5..];
-        assert_eq!(pi.user_address(), address);
-        let reduced_left_value = convert_u8_to_u32_slice(&left_value)
-            .last()
-            .cloned()
-            .unwrap();
-        let reduced_right_value = convert_u8_to_u32_slice(&right_value)
-            .last()
-            .cloned()
-            .unwrap();
-        // ordered values
-        let exp_values = [reduced_right_value, reduced_left_value, 0, 0];
-        let exp_values_f = exp_values
-            .into_iter()
-            .map(F::from_canonical_u32)
-            .collect_vec();
-        pi.nft_ids()
-            .iter()
-            .zip(exp_values_f.iter())
-            .for_each(|(a, b)| {
-                assert_eq!(a, b);
-            });
-        pi.block_header()
-            .iter()
-            .zip(block_header.iter())
-            .for_each(|(a, b)| {
-                assert_eq!(a, b);
-            });
-        assert_eq!(pi.min_block_number(), query_min_block_number);
-        assert_eq!(pi.max_block_number(), query_max_block_number);
-        assert_eq!(pi.range(), root_proof.range());
-        assert_eq!(
-            pi.smart_contract_address(),
-            root_proof.smart_contract_address()
-        );
-        assert_eq!(pi.mapping_slot(), root_proof.mapping_slot());
-        assert_eq!(pi.mapping_slot_length(), root_proof.mapping_slot_length());
-
-    */
+    // Check the revelation public inputs.
+    assert_eq!(pi.block_number(), last_block);
+    assert_eq!(pi.range(), root_proof.range());
+    assert_eq!(pi.min_block_number(), query_min_block_number);
+    assert_eq!(pi.max_block_number(), query_max_block_number);
+    assert_eq!(
+        pi.smart_contract_address(),
+        root_proof.smart_contract_address(),
+    );
+    assert_eq!(pi.user_address(), root_proof.user_address(),);
+    assert_eq!(pi.mapping_slot(), root_proof.mapping_slot());
+    assert_eq!(pi.mapping_slot_length(), root_proof.mapping_slot_length());
+    assert_eq!(pi.block_header(), db_proof.block_header_data());
+    assert_eq!(pi.rewards_rate(), root_proof.rewards_rate());
+    // Check the final query result is the addition of leaves.
+    assert_eq!(
+        pi.query_results(),
+        left_leaf_pi.query_results() + right_leaf_pi.query_results()
+    );
 }
