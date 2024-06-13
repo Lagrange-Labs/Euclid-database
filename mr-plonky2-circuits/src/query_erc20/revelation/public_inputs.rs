@@ -270,3 +270,20 @@ impl<'a, const L: usize> RevelationPublicInputs<'a, GoldilocksField, L> {
         self.block_header_raw()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::RevelationPublicInputs as QueryERC20PI;
+    use crate::query2::revelation::RevelationPublicInputs as Query2PI;
+    use plonky2::iop::target::Target;
+
+    #[test]
+    fn test_same_pi_len_for_query2_and_query2_erc20() {
+        const L: usize = 5;
+
+        assert_eq!(
+            Query2PI::<Target, L>::total_len(),
+            QueryERC20PI::<Target, L>::total_len()
+        );
+    }
+}
