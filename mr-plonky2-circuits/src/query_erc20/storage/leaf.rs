@@ -1,11 +1,8 @@
 use mrp2_utils::u256::{CircuitBuilderU256, UInt256Target, WitnessWriteU256};
-use std::array::from_fn as create_array;
 
 use crate::{
-    array::Targetable,
-    query_erc20::storage::public_inputs::PublicInputs,
-    types::{PackedAddressTarget, PackedU256Target, PACKED_U256_LEN},
-    utils::Packer,
+    array::Targetable, query_erc20::storage::public_inputs::PublicInputs,
+    types::PackedAddressTarget, utils::Packer,
 };
 use ethers::prelude::{Address, U256};
 use plonky2::{
@@ -13,7 +10,6 @@ use plonky2::{
     iop::witness::PartialWitness, plonk::circuit_builder::CircuitBuilder,
 };
 use plonky2::{field::types::Field, iop::target::Target};
-use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use recursion_framework::circuit_builder::CircuitLogicWires;
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +22,7 @@ pub struct LeafWires {
     query_address: PackedAddressTarget,
     value: UInt256Target,
     total_supply: UInt256Target,
-    reward: UInt256Target,
+    rewards_rate: UInt256Target,
 }
 
 #[derive(Clone, Debug)]
@@ -35,7 +31,7 @@ pub struct LeafCircuit {
     pub query_address: Address,
     pub value: U256,
     pub total_supply: U256,
-    pub reward: U256,
+    pub rewards_rate: U256,
 }
 
 impl LeafCircuit {
@@ -48,7 +44,7 @@ impl LeafCircuit {
         [
             (self.value, &wires.value),
             (self.total_supply, &wires.total_supply),
-            (self.reward, &wires.reward),
+            (self.rewards_rate, &wires.rewards_rate),
         ]
         .iter()
         .for_each(|(v, w)| pw.set_u256_target(w, *v));
@@ -59,7 +55,7 @@ impl LeafCircuit {
         let address = PackedAddressTarget::new(b);
         // address of the query we expose as public input
         let query_address = PackedAddressTarget::new(b);
-        let [value, total_supply, reward] = [0; 3].map(|_| b.add_virtual_u256());
+        let [value, total_supply, rewards_rate] = [0; 3].map(|_| b.add_virtual_u256());
 
         // C = poseidon("LEAF" || pack_u32(address) || pack_u32(value))
         let prefix: Vec<_> = HASH_PREFIX
@@ -78,21 +74,21 @@ impl LeafCircuit {
         // do multiplication first then division
         // We can't handle overflow in v0 yet so we ignore it
         let zero_u256 = b.zero_u256();
-        let (op1, _) = b.mul_u256(&value, &reward);
+        let (op1, _) = b.mul_u256(&value, &rewards_rate);
         let (res, _, _) = b.div_u256(&op1, &total_supply);
         let are_addresses_equal = address.equals(b, &query_address);
         // only output real value if user address == query address.
         // That's a hack to allow to still have a proof when a user is not included in a block since non membership
         // proofs will be supported only in v1.
         let final_output = b.select_u256(are_addresses_equal, &res, &zero_u256);
-        PublicInputs::<GoldilocksField>::register(b, &c, &address, &final_output, &reward);
+        PublicInputs::<GoldilocksField>::register(b, &c, &address, &final_output, &rewards_rate);
 
         LeafWires {
             address,
             query_address,
             value,
             total_supply,
-            reward,
+            rewards_rate,
         }
     }
 }

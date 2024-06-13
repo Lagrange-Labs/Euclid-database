@@ -88,7 +88,18 @@ impl<'a> UserCircuit<F, D> for TestInnerNodeCircuit<'a> {
 fn test_query_erc20_storage_leaf_circuit() {
     let mut rng = thread_rng();
     let address = Address::random();
-    let [value, total_supply, reward] = [0; 3].map(|_| U256(rng.gen::<[u64; 4]>()));
+
+    // Generate the base values to calculate rewards.
+    // Leave the first 16-bits for the rewards rate.
+    let max_total_supply = U256::MAX >> 16;
+    let [value, total_supply] = [0; 2].map(|_| U256(rng.gen::<[u64; 4]>()));
+    let total_supply = total_supply & max_total_supply;
+    // Ensure value <= total_supply.
+    let value = value & total_supply;
+    assert!(value <= total_supply);
+    let rewards_rate = U256::from(rng.gen::<u16>());
+    // Calculate the expected result.
+    let exp_query_results = rewards_rate * value / total_supply;
 
     let test_circuit = TestLeafCircuit {
         c: LeafCircuit {
@@ -96,7 +107,7 @@ fn test_query_erc20_storage_leaf_circuit() {
             address,
             value,
             total_supply,
-            reward,
+            rewards_rate,
         },
     };
 
@@ -122,9 +133,8 @@ fn test_query_erc20_storage_leaf_circuit() {
 
     assert_eq!(pi.root_hash(), exp_c);
     assert_eq!(pi.query_user_address(), address);
-    // TODO
-    // assert_eq!(pi.v(), reward * value / total_supply);
-    assert_eq!(pi.query_rewards_rate(), reward);
+    assert_eq!(pi.query_results(), exp_query_results);
+    assert_eq!(pi.query_rewards_rate(), rewards_rate);
 }
 
 #[test]
@@ -186,14 +196,14 @@ fn test_query_erc20_storage_api() {
 
     let mut rng = thread_rng();
     let address = Address::random();
-    let [value, total_supply, reward] = [0; 3].map(|_| U256(rng.gen::<[u64; 4]>()));
+    let [value, total_supply, rewards_rate] = [0; 3].map(|_| U256(rng.gen::<[u64; 4]>()));
     let leaf = params
         .generate_proof(CircuitInput::new_leaf(
             address,
             address,
             value,
             total_supply,
-            reward,
+            rewards_rate,
         ))
         .unwrap();
     params
