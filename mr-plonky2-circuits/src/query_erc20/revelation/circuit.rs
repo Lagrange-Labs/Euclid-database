@@ -6,14 +6,34 @@ use plonky2::{
         target::Target,
         witness::{PartialWitness, WitnessWrite},
     },
-    plonk::{circuit_builder::CircuitBuilder, circuit_data::VerifierOnlyCircuitData, config::Hasher, proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget}},
+    plonk::{
+        circuit_builder::CircuitBuilder,
+        circuit_data::VerifierOnlyCircuitData,
+        config::Hasher,
+        proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget},
+    },
 };
 
-use recursion_framework::{circuit_builder::CircuitLogicWires, framework::{RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget}, serialization::{deserialize, serialize}};
+use recursion_framework::{
+    circuit_builder::CircuitLogicWires,
+    framework::{
+        RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
+    },
+    serialization::{deserialize, serialize},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::{default_config, deserialize_proof, ProofWithVK, C, D, F}, block::{empty_merkle_root, public_inputs::PublicInputs as BlockDBPublicInputs, Parameters as BlockDbParameters}, query_erc20::{block::BlockPublicInputs as BlockQueryPublicInputs, revelation::{BLOCK_DB_NUM_IO, QUERY_ERC_BLOCK_NUM_IO}}, utils::less_than
+    api::{default_config, deserialize_proof, ProofWithVK, C, D, F},
+    block::{
+        empty_merkle_root, public_inputs::PublicInputs as BlockDBPublicInputs,
+        Parameters as BlockDbParameters,
+    },
+    query_erc20::{
+        block::BlockPublicInputs as BlockQueryPublicInputs,
+        revelation::{BLOCK_DB_NUM_IO, QUERY_ERC_BLOCK_NUM_IO},
+    },
+    utils::less_than,
 };
 
 use super::{RevelationErcInput, RevelationPublicInputs};
@@ -107,14 +127,14 @@ impl<const L: usize> RevelationCircuit<L> {
 pub struct BuilderParams {
     query_circuits: RecursiveCircuits<F, C, D>,
     block_db_circuits: RecursiveCircuits<F, C, D>,
-    block_db_verifier_data: VerifierOnlyCircuitData<C, D>
+    block_db_verifier_data: VerifierOnlyCircuitData<C, D>,
 }
 
 impl BuilderParams {
     pub(crate) fn new(
         query_circuits: RecursiveCircuits<F, C, D>,
         block_db_circuits: RecursiveCircuits<F, C, D>,
-        block_db_verifier_data: VerifierOnlyCircuitData<C, D>
+        block_db_verifier_data: VerifierOnlyCircuitData<C, D>,
     ) -> Self {
         Self {
             query_circuits,
@@ -156,7 +176,8 @@ pub(crate) const fn revelation_num_io<const L: usize>() -> usize {
     RevelationPublicInputs::<Target, L>::total_len()
 }
 
-impl<const BLOCK_DB_DEPTH: usize, const L: usize> CircuitLogicWires<F, D, 0> for RevelationRecursiveWires<BLOCK_DB_DEPTH, L> 
+impl<const BLOCK_DB_DEPTH: usize, const L: usize> CircuitLogicWires<F, D, 0>
+    for RevelationRecursiveWires<BLOCK_DB_DEPTH, L>
 where
     [(); <PoseidonHash as Hasher<F>>::HASH_SIZE]:,
 {
@@ -170,8 +191,7 @@ where
         builder: &mut CircuitBuilder<F, D>,
         _verified_proofs: [&ProofWithPublicInputsTarget<D>; 0],
         builder_parameters: Self::CircuitBuilderParams,
-    ) -> Self 
-    {
+    ) -> Self {
         // instantiate the wires to verify a query2/block proof which can be in a circuit set
         let query_block_verifier_gadget =
             RecursiveCircuitsVerifierGagdet::<F, C, D, QUERY_ERC_BLOCK_NUM_IO>::new(
@@ -192,11 +212,10 @@ where
                 &builder_parameters.block_db_circuits,
             );
         // we enforce that the db proof is generated with the IVC circuit, not the dummy one
-        let block_db_wires = block_db_verifier_gadget
-            .verify_proof_fixed_circuit_in_circuit_set(
-                builder, 
-                &builder_parameters.block_db_verifier_data
-            );
+        let block_db_wires = block_db_verifier_gadget.verify_proof_fixed_circuit_in_circuit_set(
+            builder,
+            &builder_parameters.block_db_verifier_data,
+        );
         let block_db_pi = BlockDBPublicInputs::from(
             BlockDbParameters::<BLOCK_DB_DEPTH>::block_tree_public_input_targets(&block_db_wires),
         );
@@ -205,9 +224,11 @@ where
             RevelationCircuit::<L>::build::<BLOCK_DB_DEPTH>(builder, block_db_pi, query_block_pi);
 
         // register additional public input to identify the query circuits
-        let identifier = builder.constant(
-            F::from_canonical_u64(u64::from_be_bytes("ERC20".as_bytes().try_into().unwrap()))
-        );
+        let mut identifier = vec![0u8; 3];
+        identifier.extend_from_slice("ERC20".as_bytes());
+        let identifier = builder.constant(F::from_canonical_u64(u64::from_be_bytes(
+            identifier.try_into().unwrap(),
+        )));
         builder.register_public_input(identifier);
 
         RevelationRecursiveWires {
@@ -219,9 +240,17 @@ where
 
     fn assign_input(&self, inputs: Self::Inputs, pw: &mut PartialWitness<F>) -> anyhow::Result<()> {
         let (query_proof, query_vd) = (&inputs.inputs.query_block_proof).into();
-        self.query_block_wires.set_target(pw, &inputs.query_block_circuit_set, query_proof, query_vd)?;
+        self.query_block_wires.set_target(
+            pw,
+            &inputs.query_block_circuit_set,
+            query_proof,
+            query_vd,
+        )?;
         pw.set_proof_with_pis_target(&self.block_db_wires, &inputs.inputs.block_db_proof);
-        inputs.inputs.logic_inputs.assign(pw, &self.revelation_wires);
+        inputs
+            .inputs
+            .logic_inputs
+            .assign(pw, &self.revelation_wires);
 
         Ok(())
     }

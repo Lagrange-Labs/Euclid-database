@@ -1,10 +1,14 @@
 use anyhow::Result;
-use circuit::{revelation_num_io, BuilderParams, RevelationRecursiveInput, RevelationRecursiveWires};
+use circuit::{
+    revelation_num_io, BuilderParams, RevelationRecursiveInput, RevelationRecursiveWires,
+};
 use ethers::middleware::builder;
 use recursion_framework::{
-    circuit_builder::{CircuitWithUniversalVerifier, CircuitWithUniversalVerifierBuilder}, framework::{
+    circuit_builder::{CircuitWithUniversalVerifier, CircuitWithUniversalVerifierBuilder},
+    framework::{
         RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
-    }, serialization::{deserialize, serialize}
+    },
+    serialization::{deserialize, serialize},
 };
 use serde::{Deserialize, Serialize};
 use std::{array::from_fn as create_array, collections::BTreeMap};
@@ -24,7 +28,10 @@ use plonky2::{
 };
 
 use crate::{
-    api::{default_config, deserialize_proof, serialize_proof, ProofWithVK, C, D, F, QUERY_CIRCUIT_SET_SIZE},
+    api::{
+        default_config, deserialize_proof, serialize_proof, ProofWithVK, C, D, F,
+        QUERY_CIRCUIT_SET_SIZE,
+    },
     block::{
         Parameters as BlockDbParameters, PublicInputs as BlockDbPublicInputs, NUM_IVC_PUBLIC_INPUTS,
     },
@@ -49,7 +56,8 @@ pub use self::public_inputs::RevelationPublicInputs;
 /// - `L` the number of NFT IDs to reveal
 #[derive(Serialize, Deserialize)]
 pub struct Parameters<const BLOCK_DB_DEPTH: usize, const L: usize> {
-    revelation_circuit: CircuitWithUniversalVerifier<F, C, D, 0, RevelationRecursiveWires<BLOCK_DB_DEPTH, L>>,
+    revelation_circuit:
+        CircuitWithUniversalVerifier<F, C, D, 0, RevelationRecursiveWires<BLOCK_DB_DEPTH, L>>,
 }
 
 /// Circuit inputs for the revelation step which contains the
@@ -87,22 +95,22 @@ impl<const L: usize> RevelationErcInput<L> {
 const QUERY_ERC_BLOCK_NUM_IO: usize = block::BlockPublicInputs::<Target>::total_len();
 const BLOCK_DB_NUM_IO: usize = NUM_IVC_PUBLIC_INPUTS;
 pub(crate) const fn num_io<const L: usize>() -> usize {
-    revelation_num_io::<L>()+1
+    revelation_num_io::<L>() + 1
 }
 
-impl<const BLOCK_DB_DEPTH: usize, const L: usize> Parameters<BLOCK_DB_DEPTH, L> {
+impl<const BLOCK_DB_DEPTH: usize, const L: usize> Parameters<BLOCK_DB_DEPTH, L>
+where
+    [(); <PoseidonHash as Hasher<F>>::HASH_SIZE]:,
+    [(); num_io::<L>()]:,
+{
     /// Arguments are the circuit sets used to generate the query2/block proofs
     /// and the block db proof, and the verification key of the block db circuit
     pub fn build(
         query2_block_set: &RecursiveCircuits<F, C, D>,
         block_db_circuit_set: &RecursiveCircuits<F, C, D>,
         block_db_verifier_data: &VerifierOnlyCircuitData<C, D>,
-    ) -> Self
-    where
-        [(); <PoseidonHash as Hasher<F>>::HASH_SIZE]:,
-        [(); num_io::<L>()]:,
-    {
-        let builder = CircuitWithUniversalVerifierBuilder::<F, D,{num_io::<L>()}>::new::<C>(
+    ) -> Self {
+        let builder = CircuitWithUniversalVerifierBuilder::<F, D, { num_io::<L>() }>::new::<C>(
             default_config(),
             QUERY_CIRCUIT_SET_SIZE,
         );
@@ -116,38 +124,25 @@ impl<const BLOCK_DB_DEPTH: usize, const L: usize> Parameters<BLOCK_DB_DEPTH, L> 
         Self {
             revelation_circuit: circuit,
         }
-
-
     }
     fn generate_proof_internal(
         &self,
-        query_circuits: &RecursiveCircuits<F, C, D>, 
+        query_circuits: &RecursiveCircuits<F, C, D>,
         inputs: RevelationRecursiveInput<L>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>>
-    where
-        [(); <PoseidonHash as Hasher<F>>::HASH_SIZE]:,
-    {
-        query_circuits.generate_proof(
-            &self.revelation_circuit, 
-            [], 
-            [], 
-            inputs
-        )
+    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        query_circuits.generate_proof(&self.revelation_circuit, [], [], inputs)
     }
 
     pub fn generate_proof(
         &self,
-        query_circuits: &RecursiveCircuits<F, C, D>, 
+        query_circuits: &RecursiveCircuits<F, C, D>,
         inputs: RevelationRecursiveInput<L>,
     ) -> Result<Vec<u8>> {
         let proof = self.generate_proof_internal(query_circuits, inputs)?;
-        ProofWithVK::from((
-            proof,
-            self.verifier_data().verifier_only.clone(),
-        )).serialize()
+        ProofWithVK::from((proof, self.verifier_data().verifier_only.clone())).serialize()
     }
     pub fn circuit_data(&self) -> &CircuitData<F, C, D> {
-        &self.revelation_circuit.circuit_data()
+        self.revelation_circuit.circuit_data()
     }
     pub fn verifier_data(&self) -> VerifierCircuitData<F, C, D> {
         self.revelation_circuit.circuit_data().verifier_data()
@@ -210,9 +205,8 @@ mod test {
 
         // Generate a fake query circuits verification key
         let queries_testing_framework =
-        TestingRecursiveCircuits::<F, C, D, {num_io::<L>()}>::default();
+            TestingRecursiveCircuits::<F, C, D, { num_io::<L>() }>::default();
         let queries_circuit_set = queries_testing_framework.get_recursive_circuit_set();
-
 
         let block_db_vk = block_db_testing_framework.verifier_data_for_input_proofs::<1>()[0];
         // Build the params
