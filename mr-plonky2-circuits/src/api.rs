@@ -1,10 +1,10 @@
 use anyhow::Result;
-use plonky2::plonk::{
+use plonky2::{hash::poseidon::PoseidonHash, plonk::{
     circuit_builder::CircuitBuilder,
     circuit_data::{CircuitConfig, VerifierCircuitData, VerifierOnlyCircuitData},
-    config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig},
+    config::{AlgebraicHasher, GenericConfig, Hasher, PoseidonGoldilocksConfig},
     proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget},
-};
+}};
 use recursion_framework::{
     framework::RecursiveCircuits,
     serialization::{circuit_data_serialization::SerializableRichField, deserialize, serialize},
@@ -23,8 +23,7 @@ pub use crate::state::{
 };
 
 use crate::{
-    block::Inputs,
-    state::{block_linking, lpn::api::ProofInputs},
+    block::Inputs, query_erc20::revelation::circuit::RevelationRecursiveInput, query_erc20::{self, revelation::{num_io, RevelationErcInput}}, state::{block_linking, lpn::api::ProofInputs}
 };
 
 use self::storage::{digest_equal, length_match};
@@ -34,6 +33,7 @@ use crate::block;
 pub(crate) const D: usize = 2;
 pub(crate) type C = PoseidonGoldilocksConfig;
 pub(crate) type F = <C as GenericConfig<D>>::F;
+pub(crate) const QUERY_CIRCUIT_SET_SIZE: usize = 2;
 
 /// Set of inputs necessary to generate proofs for each circuit employed in the pre-processing
 /// stage of LPN
@@ -200,6 +200,60 @@ pub fn block_db_circuit_info<const MAX_DEPTH: usize>(
         verifier_data: params.block_db.get_block_db_vk().clone(),
     };
     block_db_info.serialize()
+}
+
+pub struct QueryParameters<const MAX_DEPTH: usize, const L: usize> {
+    query_erc_params: query_erc20::PublicParameters<MAX_DEPTH, L>,
+    query_erc_revelation: query_erc20::revelation::Parameters<MAX_DEPTH, L>,
+    // add query2
+    query_circuit_set: RecursiveCircuits<F, C, D>,
+}
+
+impl<const MAX_DEPTH: usize, const L: usize> QueryParameters<MAX_DEPTH, L> 
+where 
+[(); num_io::<L>()]:,
+[(); <PoseidonHash as Hasher<F>>::HASH_SIZE]:,
+{
+    pub fn build(block_db_circuit_info: &[u8]) -> Result<Self> {
+        let query_erc_params = query_erc20::PublicParameters::build()?;
+        let block_db_info =
+            BlockDBCircuitInfo::<MAX_DEPTH>::deserialize(block_db_circuit_info)?;
+        let query_erc_revelation = query_erc20::revelation::Parameters::build(
+            query_erc_params.get_query_block_circuit_set(), 
+            block_db_info.get_block_db_circuit_set(), 
+            block_db_info.get_block_db_vk(),
+        );
+        let digests = vec![query_erc_revelation.verifier_data().verifier_only.circuit_digest];
+
+        let query_circuit_set = RecursiveCircuits::new_from_circuit_digests(digests);
+
+        Ok(
+            Self {
+                query_erc_params,
+                query_erc_revelation,
+                query_circuit_set,
+            }
+        )
+    }
+
+    pub fn generate_proof(&self, input: QueryInput<L>) -> Result<Vec<u8>> {
+        match input {
+            QueryInput::QueryErc(inputs) => {
+                self.query_erc_revelation.generate_proof(
+                    &self.query_circuit_set, 
+                    RevelationRecursiveInput::new(
+                        inputs,
+                        self.query_erc_params.get_query_block_circuit_set().clone(),
+                    )?
+                )
+            }
+        }
+    }
+}
+
+pub enum QueryInput<const L: usize> {
+    QueryErc(RevelationErcInput<L>)
+    // Add query2
 }
 
 /// ProofWithVK is a generic struct holding a child proof and its associated verification key.

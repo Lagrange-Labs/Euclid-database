@@ -1,6 +1,6 @@
 mod api;
 mod block;
-mod revelation;
+pub(crate) mod revelation;
 mod state;
 mod storage;
 #[cfg(test)]

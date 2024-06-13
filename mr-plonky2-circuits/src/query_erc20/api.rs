@@ -4,6 +4,7 @@ use super::{
     storage,
 };
 use crate::api::{BlockDBCircuitInfo, C, D, F};
+use recursion_framework::framework::RecursiveCircuits;
 use serde::{Deserialize, Serialize};
 
 use anyhow::Result;
@@ -17,8 +18,6 @@ pub enum CircuitInput<const L: usize> {
     State(state::CircuitInput),
     /// Input to be provided to generate a proof for the block DB circuit of query2-erc20
     Block(block::CircuitInput),
-    // Input to be provided to generate a proof for the final revelation circuit of query2-erc20
-    Revelation(revelation::RevelationRecursiveInput<L>),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -27,27 +26,20 @@ pub struct PublicParameters<const BLOCK_DB_DEPTH: usize, const L: usize> {
     storage: storage::Parameters,
     state: state::Parameters,
     block: block::Parameters,
-    revelation: revelation::Parameters<BLOCK_DB_DEPTH, L>,
+    //revelation: revelation::Parameters<BLOCK_DB_DEPTH, L>,
 }
 
-impl<const BLOCK_DB_DEPTH: usize, const L: usize> PublicParameters<BLOCK_DB_DEPTH, L> {
+impl<const BLOCK_DB_DEPTH: usize, const L: usize> PublicParameters<BLOCK_DB_DEPTH, L> 
+{
     /// Instantiate the circuits employed for query2, returning their corresponding parameters
-    pub fn build(block_db_circuit_info: &[u8]) -> Result<Self> {
+    pub fn build() -> Result<Self> {
         let storage = storage::Parameters::build();
         let state = state::Parameters::build(storage.get_storage_circuit_set());
         let block = block::Parameters::build(&state);
-        let block_db_info =
-            BlockDBCircuitInfo::<BLOCK_DB_DEPTH>::deserialize(block_db_circuit_info)?;
-        let revelation = revelation::Parameters::build(
-            block.get_block_circuit_set(),
-            block_db_info.get_block_db_circuit_set(),
-            block_db_info.get_block_db_vk(),
-        );
         Ok(Self {
             storage,
             state,
             block,
-            revelation,
         })
     }
     /// Generate a proof for the circuit related to query2 specified by `input`,
@@ -64,11 +56,10 @@ impl<const BLOCK_DB_DEPTH: usize, const L: usize> PublicParameters<BLOCK_DB_DEPT
                 ),
             ),
             CircuitInput::Block(input) => self.block.generate_proof(input),
-            CircuitInput::Revelation(input) => self.revelation.generate_proof(input),
         }
     }
-    /// Return the circuit data of final revelation proof.
-    pub fn final_proof_circuit_data(&self) -> &CircuitData<F, C, D> {
-        self.revelation.circuit_data()
+
+    pub fn get_query_block_circuit_set(&self) -> &RecursiveCircuits<F, C, D> {
+        self.block.get_block_circuit_set()
     }
 }
