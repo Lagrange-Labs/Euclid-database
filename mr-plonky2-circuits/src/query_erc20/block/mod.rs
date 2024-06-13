@@ -12,7 +12,8 @@ use ethers::prelude::U256;
 use itertools::Itertools;
 use mrp2_utils::{
     types::{PackedU256Target, PACKED_U256_LEN},
-    u256::{CircuitBuilderU256, UInt256Target}, utils::convert_u32_fields_to_u256,
+    u256::{CircuitBuilderU256, UInt256Target},
+    utils::convert_u32_fields_to_u256,
 };
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
