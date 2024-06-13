@@ -2,7 +2,7 @@ use crate::types::PackedU256Target;
 use std::array::from_fn as create_array;
 
 use ethers::prelude::U256;
-use mrp2_utils::u256::{CircuitBuilderU256, UInt256Target};
+use mrp2_utils::{u256::{CircuitBuilderU256, UInt256Target}, utils::convert_u32_fields_to_u256};
 use plonky2::{
     field::goldilocks_field::GoldilocksField, iop::target::Target,
     plonk::circuit_builder::CircuitBuilder,
@@ -249,13 +249,11 @@ impl<'a> RevelationPublicInputs<'a, GoldilocksField> {
     }
 
     pub(crate) fn query_results(&self) -> U256 {
-        U256::from_little_endian(&convert_u32_fields_to_u8_vec(&self.query_results_raw()))
+        convert_u32_fields_to_u256(&self.query_results_raw())
     }
 
     pub(crate) fn rewards_rate(&self) -> U256 {
-        U256::from_little_endian(&convert_u32_fields_to_u8_vec(
-            &self.query_rewards_rate_raw(),
-        ))
+        convert_u32_fields_to_u256(&self.query_rewards_rate_raw())
     }
 
     pub(crate) fn block_header(&self) -> &[GoldilocksField] {
