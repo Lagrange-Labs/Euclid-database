@@ -13,5 +13,6 @@ pub use mrp2_utils::{eth, types, utils};
 pub mod api;
 pub mod block;
 pub mod query2;
+pub mod query_erc20;
 pub mod state;
 pub mod storage;
