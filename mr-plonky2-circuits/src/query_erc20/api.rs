@@ -18,7 +18,7 @@ pub enum CircuitInput<const L: usize> {
     /// Input to be provided to generate a proof for the block DB circuit of query2-erc20
     Block(block::CircuitInput),
     // Input to be provided to generate a proof for the final revelation circuit of query2-erc20
-    Revelation(revelation::RevelationRecursiveInput),
+    Revelation(revelation::RevelationRecursiveInput<L>),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -27,7 +27,7 @@ pub struct PublicParameters<const BLOCK_DB_DEPTH: usize, const L: usize> {
     storage: storage::Parameters,
     state: state::Parameters,
     block: block::Parameters,
-    revelation: revelation::Parameters<BLOCK_DB_DEPTH>,
+    revelation: revelation::Parameters<BLOCK_DB_DEPTH, L>,
 }
 
 impl<const BLOCK_DB_DEPTH: usize, const L: usize> PublicParameters<BLOCK_DB_DEPTH, L> {

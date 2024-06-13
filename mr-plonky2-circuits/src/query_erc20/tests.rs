@@ -92,12 +92,14 @@ impl UserCircuit<F, D> for PartialNodeCircuitValidator<'_> {
 }
 
 #[derive(Clone, Debug)]
-struct RevelationCircuitValidator<'a, const MAX_DEPTH: usize> {
-    validated: RevelationCircuit,
+struct RevelationCircuitValidator<'a, const MAX_DEPTH: usize, const L: usize> {
+    validated: RevelationCircuit<L>,
     db_proof: BlockDBPublicInputs<'a, F>,
     root_proof: BlockQueryPublicInputs<'a, F>,
 }
-impl<const MAX_DEPTH: usize> UserCircuit<F, D> for RevelationCircuitValidator<'_, MAX_DEPTH> {
+impl<const MAX_DEPTH: usize, const L: usize> UserCircuit<F, D>
+    for RevelationCircuitValidator<'_, MAX_DEPTH, L>
+{
     type Wires = (RevelationWires, Vec<Target>, Vec<Target>);
 
     fn build(c: &mut CircuitBuilder<F, D>) -> Self::Wires {
@@ -107,7 +109,7 @@ impl<const MAX_DEPTH: usize> UserCircuit<F, D> for RevelationCircuitValidator<'_
         let root_proof_io = c.add_virtual_targets(BlockQueryPublicInputs::<Target>::total_len());
         let root_proof_pi = BlockQueryPublicInputs::<Target>::from(root_proof_io.as_slice());
 
-        let wires = RevelationCircuit::build::<MAX_DEPTH>(c, db_proof_pi, root_proof_pi);
+        let wires = RevelationCircuit::<L>::build::<MAX_DEPTH>(c, db_proof_pi, root_proof_pi);
         (wires, db_proof_io, root_proof_io)
     }
 
@@ -129,6 +131,7 @@ const EMPTY_NFT_ID: [u8; MAPPING_KEY_LEN] = [0u8; MAPPING_KEY_LEN];
 /// └── Untouched sub-tree - hash == Poseidon("ernesto")
 #[test]
 fn test_query_erc20_main_api() {
+    const L: usize = 5;
     const SLOT_LENGTH: u32 = 9;
     const MAX_DEPTH: usize = 12;
     const MAPPING_SLOT: u32 = 48372;
@@ -203,12 +206,12 @@ fn test_query_erc20_main_api() {
         query_max_block_number: query_max_block_number.to_canonical_u64() as usize,
     };
 
-    let final_proof = run_circuit::<F, D, C, _>(RevelationCircuitValidator::<MAX_DEPTH> {
+    let final_proof = run_circuit::<F, D, C, _>(RevelationCircuitValidator::<MAX_DEPTH, L> {
         validated: revelation_circuit,
         db_proof: db_proof.clone(),
         root_proof: root_proof.clone(),
     });
-    let pi = RevelationPublicInputs::<_> {
+    let pi = RevelationPublicInputs::<_, L> {
         inputs: final_proof.public_inputs.as_slice(),
     };
 

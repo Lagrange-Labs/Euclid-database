@@ -26,12 +26,12 @@ pub(crate) struct RevelationWires {
 }
 
 #[derive(Clone, Debug)]
-pub struct RevelationCircuit {
+pub struct RevelationCircuit<const L: usize> {
     // parameters of the query
     pub(crate) query_min_block_number: usize,
     pub(crate) query_max_block_number: usize,
 }
-impl RevelationCircuit {
+impl<const L: usize> RevelationCircuit<L> {
     pub fn build<const MAX_DEPTH: usize>(
         b: &mut CircuitBuilder<GoldilocksField, 2>,
         db_proof: BlockDBPublicInputs<Target>,
@@ -72,7 +72,7 @@ impl RevelationCircuit {
         let right_side = b.select(too_large_max, max_block_in_db.0, query_max_block_number);
         b.connect(root_proof.block_number(), right_side);
 
-        RevelationPublicInputs::<Target>::register(
+        RevelationPublicInputs::<Target, L>::register(
             b,
             root_proof.block_number(),
             root_proof.range(),
