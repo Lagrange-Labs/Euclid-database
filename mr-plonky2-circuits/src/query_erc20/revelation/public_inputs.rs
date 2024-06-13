@@ -2,7 +2,10 @@ use crate::types::PackedU256Target;
 use std::array::from_fn as create_array;
 
 use ethers::prelude::U256;
-use mrp2_utils::{u256::{CircuitBuilderU256, UInt256Target}, utils::convert_u32_fields_to_u256};
+use mrp2_utils::{
+    u256::{CircuitBuilderU256, UInt256Target},
+    utils::convert_u32_fields_to_u256,
+};
 use plonky2::{
     field::goldilocks_field::GoldilocksField, iop::target::Target,
     plonk::circuit_builder::CircuitBuilder,

@@ -13,16 +13,14 @@ use plonky2::{
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use serialization::{
-        circuit_data_serialization::SerializableRichField, deserialize, deserialize_long_array,
-        serialize, serialize_long_array,
-    };
+    circuit_data_serialization::SerializableRichField, deserialize, deserialize_long_array,
+    serialize, serialize_long_array,
+};
 
-use crate::{
-        universal_verifier_gadget::{
-        verifier_gadget::{UniversalVerifierBuilder, UniversalVerifierTarget},
-        wrap_circuit::WrapCircuit,
-        CircuitSet, CircuitSetDigest, CircuitSetTarget,
-    },
+use crate::universal_verifier_gadget::{
+    verifier_gadget::{UniversalVerifierBuilder, UniversalVerifierTarget},
+    wrap_circuit::WrapCircuit,
+    CircuitSet, CircuitSetDigest, CircuitSetTarget,
 };
 
 use anyhow::Result;

@@ -13,15 +13,15 @@ use plonky2::{
 };
 use serde::{Deserialize, Serialize};
 use serialization::{
-        circuit_data_serialization::SerializableRichField, deserialize_array, serialize_array,
-    };
+    circuit_data_serialization::SerializableRichField, deserialize_array, serialize_array,
+};
 
 use crate::{
     circuit_builder::{
         CircuitLogicWires, CircuitWithUniversalVerifier, CircuitWithUniversalVerifierBuilder,
     },
     framework::{RecursiveCircuitInfo, RecursiveCircuits},
-    };
+};
 
 use anyhow::Result;
 #[derive(Serialize, Deserialize, Eq, PartialEq)]
