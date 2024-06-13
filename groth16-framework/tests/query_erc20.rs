@@ -1,4 +1,4 @@
-//! Test the Groth16 proving process for the query2 circuit.
+//! Test the Groth16 proving process for the query-erc20 circuit.
 
 use anyhow::Result;
 use ethers::abi::{Contract, Token};
@@ -79,15 +79,16 @@ impl Query {
     }
 }
 
-/// Test proving for the query2 circuit.
-// TODO
-// #[ignore] // Ignore for long running time in CI.
+/// Test proving for the query-erc20 circuit.
+#[ignore] // Ignore for long running time in CI.
 #[serial]
 #[test]
-fn test_groth16_proving_for_query2() {
+fn test_groth16_proving_for_query_erc20() {
     env_logger::init();
 
-    const ASSET_DIR: &str = "groth16_query2";
+    const ASSET_DIR: &str = "groth16_query_erc20";
+
+    // gupeng
 
     // Create the test Query data.
     let query = Query::new_test();
@@ -166,9 +167,9 @@ fn plonky2_build_and_prove(asset_dir: &str, query: &Query) -> (CircuitData<F, C,
 
     // Generate a fake query2/block proof, taking some inputs from the block db
     // block range asked is just one block less than latest block in db.
-    let query_max_number = block_db_pi.block_number_data() - F::ONE;
-    let query_range = F::from_canonical_usize(10);
-    let query_min_number = query_max_number - query_range + F::ONE;
+    let query_max_number = F::from_canonical_u32(query.max_block_number);
+    let query_min_number = F::from_canonical_u32(query.min_block_number);
+    let query_range = query_max_number - query_min_number;
     let query_root = HashOut {
         elements: block_db_pi.root_data().try_into().unwrap(),
     };
