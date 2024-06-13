@@ -285,13 +285,17 @@ pub(crate) fn generate_inputs_for_state_circuit(
         Address::random()
     };
     let root = create_array(|_| GoldilocksField::rand());
-    let value = U256::from_dec_str("145648").unwrap();
+    // Generate a random U256 for the reward result.
+    let max_reward_result = U256::MAX >> 16;
+    let reward_result = U256(rng.gen::<[u64; 4]>());
+    let reward_result = reward_result & max_reward_result;
     let rewards_rate = U256::from_dec_str("34").unwrap();
     let user_address = convert_u8_to_u32_slice(&left_pad32(user_address.as_fixed_bytes()));
     let user_address_fields: [GoldilocksField; PACKED_ADDRESS_LEN] =
         create_array(|i| GoldilocksField::from_canonical_u32(user_address[i]));
 
-    let storage_pi = StorageInputs::from_parts(&root, &user_address_fields, value, rewards_rate);
+    let storage_pi =
+        StorageInputs::from_parts(&root, &user_address_fields, reward_result, rewards_rate);
 
     let storage_proof = (
         testing_framework
