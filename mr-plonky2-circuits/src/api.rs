@@ -5,11 +5,9 @@ use plonky2::plonk::{
     config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig},
     proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget},
 };
-use recursion_framework::{
-    framework::RecursiveCircuits,
-    serialization::{circuit_data_serialization::SerializableRichField, deserialize, serialize},
-};
+use recursion_framework::framework::RecursiveCircuits;
 use serde::{Deserialize, Serialize};
+use serialization::{circuit_data_serialization::SerializableRichField, deserialize, serialize};
 
 pub use crate::storage::{
     self,

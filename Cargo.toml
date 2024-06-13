@@ -5,7 +5,8 @@ members = [
     "mr-plonky2-circuits",
     "mrp2-utils",
     "mrp2-test-utils",
-    "recursion-framework",
+    "recursion-framework", 
+    "serialization",
 ]
 resolver = "2"
 

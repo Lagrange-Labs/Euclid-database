@@ -23,9 +23,9 @@ use recursion_framework::{
     framework::{
         RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
     },
-    serialization::{deserialize, serialize},
 };
 use serde::{Deserialize, Serialize};
+use serialization::{deserialize, serialize};
 
 use crate::{
     api::{default_config, ProofWithVK, C, D, F},

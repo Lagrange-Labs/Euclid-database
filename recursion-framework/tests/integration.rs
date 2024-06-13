@@ -15,8 +15,6 @@ use plonky2::{
         proof::ProofWithPublicInputsTarget,
     },
 };
-use recursion_framework::serialization::circuit_data_serialization::SerializableRichField;
-use recursion_framework::serialization::{deserialize_array, serialize_array};
 use recursion_framework::{
     circuit_builder::{CircuitLogicWires, CircuitWithUniversalVerifierBuilder},
     framework::{
@@ -25,6 +23,8 @@ use recursion_framework::{
     },
     framework_testing::{new_universal_circuit_builder_for_testing, TestingRecursiveCircuits},
 };
+use serialization::circuit_data_serialization::SerializableRichField;
+use serialization::{deserialize_array, serialize_array};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

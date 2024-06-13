@@ -43,11 +43,12 @@ use recursion_framework::{
         prepare_recursive_circuit_for_circuit_set, RecursiveCircuits,
         RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
     },
-    serialization::{
-        circuit_data_serialization::SerializableRichField, deserialize, deserialize_array,
-        serialize, serialize_array,
-    },
 };
+use serialization::{
+    circuit_data_serialization::SerializableRichField, deserialize, deserialize_array, serialize,
+    serialize_array,
+};
+
 use serde::{Deserialize, Serialize};
 use std::array;
 

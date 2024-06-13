@@ -1,5 +1,5 @@
 [package]
-name = "recursion_framework"
+name = "serialization"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,8 +10,6 @@ plonky2.workspace = true
 plonky2_crypto.workspace = true
 plonky2_ecgfp5.workspace = true
 serde.workspace = true
-
-serialization = { path = "../serialization" }
 
 [dev-dependencies]
 bincode.workspace = true

@@ -15,11 +15,11 @@ use plonky2::{
     },
     plonk::circuit_builder::CircuitBuilder,
 };
-use recursion_framework::serialization::{
+use serde::{Deserialize, Serialize};
+use serialization::{
     deserialize, deserialize_array, deserialize_long_array, serialize, serialize_array,
     serialize_long_array,
 };
-use serde::{Deserialize, Serialize};
 
 use crate::poseidon::hash_maybe_swap;
 

@@ -24,6 +24,7 @@ sha3.workspace = true
 
 recursion_framework = { path = "../recursion-framework" }
 mrp2_utils = { path = "../mrp2-utils" }
+serialization = { path = "../serialization" }
 
 [dev-dependencies]
 csv.workspace = true

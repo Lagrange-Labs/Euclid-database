@@ -24,9 +24,9 @@ use plonky2::{
     },
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
-use recursion_framework::serialization::circuit_data_serialization::SerializableRichField;
-use recursion_framework::serialization::{deserialize, serialize};
 use serde::{Deserialize, Serialize};
+use serialization::circuit_data_serialization::SerializableRichField;
+use serialization::{deserialize, serialize};
 use std::array::{self};
 
 /// This is a wrapper around an array of targets set as public inputs of any

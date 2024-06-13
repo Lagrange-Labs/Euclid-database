@@ -23,10 +23,10 @@ use plonky2_crypto::u32::{
     arithmetic_u32::{CircuitBuilderU32, U32Target},
     witness::WitnessU32,
 };
-use recursion_framework::serialization::{
+use serde::{Deserialize, Serialize};
+use serialization::{
     circuit_data_serialization::SerializableRichField, FromBytes, SerializationError, ToBytes,
 };
-use serde::{Deserialize, Serialize};
 
 use crate::utils::convert_u8_to_u32_slice;
 

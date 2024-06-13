@@ -271,7 +271,7 @@ pub(super) mod tests {
     use rstest::rstest;
     use serde::{Deserialize, Serialize};
 
-    use crate::serialization::{deserialize, serialize};
+    use crate::{deserialize, serialize};
 
     use super::*;
 

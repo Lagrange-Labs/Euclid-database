@@ -1,11 +1,9 @@
 use anyhow::Result;
-use recursion_framework::{
-    framework::{
-        RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
-    },
-    serialization::{deserialize, serialize},
+use recursion_framework::framework::{
+    RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
 };
 use serde::{Deserialize, Serialize};
+use serialization::{deserialize, serialize};
 use std::{array::from_fn as create_array, collections::BTreeMap};
 
 use plonky2::{

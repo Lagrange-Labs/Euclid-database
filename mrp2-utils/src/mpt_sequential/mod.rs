@@ -22,11 +22,11 @@ use plonky2::{
     plonk::circuit_builder::CircuitBuilder,
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
-use recursion_framework::serialization::deserialize_array;
-use recursion_framework::serialization::deserialize_long_array;
-use recursion_framework::serialization::serialize_array;
-use recursion_framework::serialization::serialize_long_array;
 use serde::{Deserialize, Serialize};
+use serialization::deserialize_array;
+use serialization::deserialize_long_array;
+use serialization::serialize_array;
+use serialization::serialize_long_array;
 use utils::bytes_to_nibbles;
 
 mod key;

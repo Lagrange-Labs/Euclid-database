@@ -12,12 +12,13 @@ use plonky2::{
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::{
-    serialization::{
+use serialization::{
         circuit_data_serialization::SerializableRichField, deserialize, deserialize_long_array,
         serialize, serialize_long_array,
-    },
-    universal_verifier_gadget::{
+    };
+
+use crate::{
+        universal_verifier_gadget::{
         verifier_gadget::{UniversalVerifierBuilder, UniversalVerifierTarget},
         wrap_circuit::WrapCircuit,
         CircuitSet, CircuitSetDigest, CircuitSetTarget,
@@ -357,7 +358,7 @@ pub(crate) mod tests {
 
     use plonky2_monolith::{gates::monolith::MonolithGate, monolith_hash::MonolithHash};
 
-    use crate::serialization::{
+    use serialization::{
         circuit_data_serialization::SerializableRichField, deserialize_array, serialize_array,
     };
 

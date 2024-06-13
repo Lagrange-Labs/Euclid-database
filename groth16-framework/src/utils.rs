@@ -4,9 +4,7 @@ use crate::{C, D, F};
 use anyhow::{anyhow, Result};
 use ethers::types::U256;
 use plonky2::plonk::circuit_data::CircuitData;
-use recursion_framework::serialization::circuit_data_serialization::{
-    CustomGateSerializer, CustomGeneratorSerializer,
-};
+use serialization::circuit_data_serialization::{CustomGateSerializer, CustomGeneratorSerializer};
 use std::{
     fs::{create_dir_all, File},
     io::{Read, Write},
