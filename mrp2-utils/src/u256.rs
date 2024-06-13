@@ -106,8 +106,13 @@ impl<F: SerializableRichField<D>, const D: usize> CircuitBuilderU256<F, D>
     }
 
     fn add_virtual_u256(&mut self) -> UInt256Target {
-        //ToDo: implement safe version
-        self.add_virtual_u256_unsafe()
+        //ToDo: make it more efficient by employing lookup-gates
+        let target = self.add_virtual_u256_unsafe();
+        // add range checks for each limb
+        target.0.iter().for_each(|t| {
+            self.range_check(t.0, 32);
+        });
+        target
     }
 
     fn register_as_public_input(&mut self, target: &UInt256Target) {
