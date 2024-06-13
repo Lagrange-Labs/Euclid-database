@@ -1,6 +1,6 @@
 use std::array::from_fn as create_array;
 
-use mrp2_utils::types::PACKED_U256_LEN;
+use mrp2_utils::{types::PACKED_U256_LEN, u256};
 use plonky2::{
     field::goldilocks_field::GoldilocksField, iop::target::Target,
     plonk::circuit_builder::CircuitBuilder,
@@ -48,7 +48,7 @@ impl<const L: usize> Inputs<L> {
         // Block Header
         OutputHash::LEN,
         // Padded uint512
-        16,
+        2 * u256::NUM_LIMBS,
     ];
 
     const fn total_len() -> usize {
@@ -154,7 +154,7 @@ impl<'a, const L: usize> RevelationPublicInputs<'a, Target, L> {
         b.register_public_inputs(&lpn_latest_block.to_targets().arr);
         // Register the 16 padded items (2 * uint256).
         let zero = b.zero();
-        b.register_public_inputs(&[zero; 2 * PACKED_U256_LEN]);
+        b.register_public_inputs(&[zero; 2 * u256::NUM_LIMBS]);
     }
 
     fn block_number(&self) -> Target {
