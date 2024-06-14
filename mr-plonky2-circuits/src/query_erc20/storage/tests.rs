@@ -6,6 +6,7 @@ use super::{
     public_inputs::PublicInputs,
     CircuitInput, Parameters,
 };
+use crate::storage::lpn::leaf_hash_for_mapping;
 use crate::{
     api::ProofWithVK,
     utils::{convert_u8_slice_to_u32_fields, ToFields},
@@ -115,21 +116,11 @@ fn test_query_erc20_storage_leaf_circuit() {
     let pi = PublicInputs::<GoldilocksField>::from_slice(&proof.public_inputs);
 
     // Calculate the expected hash:
-    // C = poseidon("LEAF" || pack_u32(address) || pack_u32(value))
-    let prefix: Vec<_> = HASH_PREFIX
-        .iter()
-        .map(|v| GoldilocksField::from_canonical_u8(*v))
-        .collect();
-    let packed_address = convert_u8_slice_to_u32_fields(&address.0);
+    // C = poseidon(pack_u32(address) || pack_u32(value))
     let mut bytes = [0; 32];
     value.to_little_endian(&mut bytes);
-    let packed_value = convert_u8_slice_to_u32_fields(&bytes);
-    let inputs: Vec<_> = prefix
-        .into_iter()
-        .chain(packed_address)
-        .chain(packed_value)
-        .collect();
-    let exp_c = hash_n_to_hash_no_pad::<_, PoseidonPermutation<_>>(&inputs);
+    let hash_bytes = leaf_hash_for_mapping(&address.to_fixed_bytes(), &bytes);
+    let exp_c = HashOut::from_bytes(&hash_bytes);
 
     assert_eq!(pi.root_hash(), exp_c);
     assert_eq!(pi.query_user_address(), address);

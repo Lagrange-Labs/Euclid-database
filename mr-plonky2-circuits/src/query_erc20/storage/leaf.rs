@@ -1,3 +1,4 @@
+use mrp2_utils::types::PackedMappingKeyTarget;
 use mrp2_utils::u256::{CircuitBuilderU256, UInt256Target, WitnessWriteU256};
 
 use crate::{
@@ -36,9 +37,9 @@ pub struct LeafCircuit {
 
 impl LeafCircuit {
     pub fn assign(&self, pw: &mut PartialWitness<GoldilocksField>, wires: &LeafWires) {
-        let address = (&self.address.0).pack().try_into().unwrap();
+        let address = self.address.0.pack().try_into().unwrap();
         wires.address.assign_from_data(pw, &address);
-        let query_address = (&self.query_address.0).pack().try_into().unwrap();
+        let query_address = self.query_address.0.pack().try_into().unwrap();
         wires.query_address.assign_from_data(pw, &query_address);
 
         [
@@ -57,15 +58,14 @@ impl LeafCircuit {
         let query_address = PackedAddressTarget::new(b);
         let [value, total_supply, rewards_rate] = [0; 3].map(|_| b.add_virtual_u256());
 
-        // C = poseidon("LEAF" || pack_u32(address) || pack_u32(value))
-        let prefix: Vec<_> = HASH_PREFIX
-            .iter()
-            .map(|v| GoldilocksField::from_canonical_u8(*v))
-            .collect();
-        let prefix = b.constants(&prefix);
-        let inputs = prefix
+        // we left_pad the address to 8 (packed 32bytes ) as it is the
+        // hashing structure expected: 32 byte for mapping key packed = 8 fields
+        let zero = b.zero();
+        let mut packed_key_mapping = [zero; 8];
+        packed_key_mapping[3..].copy_from_slice(&address.arr.map(|v| v.to_target()));
+        // C = poseidon(pack_u32(left_pad32(address)) || pack_u32(left_pad32(value)))
+        let inputs = packed_key_mapping
             .into_iter()
-            .chain(address.arr.map(|v| v.to_target()))
             .chain(<&UInt256Target as Into<Vec<Target>>>::into(&value))
             .collect();
         let c = b.hash_n_to_hash_no_pad::<PoseidonHash>(inputs);
