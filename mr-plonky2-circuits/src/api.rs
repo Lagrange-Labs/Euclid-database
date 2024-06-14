@@ -27,11 +27,7 @@ pub use crate::state::{
 
 use crate::{
     block::Inputs,
-    query_erc20::revelation::circuit::RevelationRecursiveInput,
-    query_erc20::{
-        self,
-        revelation::{num_io, RevelationErcInput},
-    },
+    query2, query_erc20,
     state::{block_linking, lpn::api::ProofInputs},
 };
 
@@ -212,20 +208,26 @@ pub fn block_db_circuit_info<const MAX_DEPTH: usize>(
 }
 
 pub struct QueryParameters<const MAX_DEPTH: usize, const L: usize> {
+    query2_params: query2::PublicParameters<MAX_DEPTH, L>,
     query_erc_params: query_erc20::PublicParameters<MAX_DEPTH, L>,
-    // add query2 params
     query_circuit_set: RecursiveCircuits<F, C, D>,
 }
 
 impl<const MAX_DEPTH: usize, const L: usize> QueryParameters<MAX_DEPTH, L>
 where
-    [(); num_io::<L>()]:,
+    [(); query2::revelation::num_io::<L>()]:,
+    [(); query_erc20::revelation::num_io::<L>()]:,
     [(); <PoseidonHash as Hasher<F>>::HASH_SIZE]:,
 {
     pub fn build(block_db_circuit_info: &[u8]) -> Result<Self> {
+        let query2_params = query2::PublicParameters::build(block_db_circuit_info)?;
         let query_erc_params = query_erc20::PublicParameters::build(block_db_circuit_info)?;
 
         let digests = vec![
+            query2_params
+                .final_proof_circuit_data()
+                .verifier_only
+                .circuit_digest,
             query_erc_params
                 .final_proof_circuit_data()
                 .verifier_only
@@ -235,6 +237,7 @@ where
         let query_circuit_set = RecursiveCircuits::new_from_circuit_digests(digests);
 
         Ok(Self {
+            query2_params,
             query_erc_params,
             query_circuit_set,
         })
@@ -242,6 +245,9 @@ where
 
     pub fn generate_proof(&self, input: QueryInput<L>) -> Result<Vec<u8>> {
         match input {
+            QueryInput::Query2(inputs) => self
+                .query2_params
+                .generate_proof(inputs, &self.query_circuit_set),
             QueryInput::QueryErc(inputs) => self
                 .query_erc_params
                 .generate_proof(inputs, &self.query_circuit_set),
@@ -250,7 +256,8 @@ where
 }
 
 pub enum QueryInput<const L: usize> {
-    QueryErc(query_erc20::CircuitInput<L>), // Add query2 inputs
+    Query2(query2::CircuitInput<L>),
+    QueryErc(query_erc20::CircuitInput<L>),
 }
 
 /// ProofWithVK is a generic struct holding a child proof and its associated verification key.
