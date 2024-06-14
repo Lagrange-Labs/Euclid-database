@@ -2,6 +2,7 @@
 
 use std::array::from_fn as create_array;
 
+use crate::serialization::{deserialize, deserialize_array, serialize, serialize_array};
 use plonky2::{
     field::extension::Extendable,
     hash::{
@@ -14,10 +15,6 @@ use plonky2::{
         witness::{PartialWitness, WitnessWrite},
     },
     plonk::circuit_builder::CircuitBuilder,
-};
-use recursion_framework::serialization::{
-    deserialize, deserialize_array, deserialize_long_array, serialize, serialize_array,
-    serialize_long_array,
 };
 use serde::{Deserialize, Serialize};
 

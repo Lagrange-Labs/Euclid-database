@@ -1,10 +1,10 @@
-use plonky2::util::serialization::IoError;
-use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
-
 /// Implement serialization for Plonky2 circuits-related data structures
 pub mod circuit_data_serialization;
 /// Implement serialization for common Plonky2 targets
 pub mod targets_serialization;
+
+use plonky2::util::serialization::IoError;
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 
 /// Provides API to serialize a data structure into a sequence of bytes
 pub trait ToBytes {
@@ -30,6 +30,10 @@ impl SerializationError {
     /// Conver `SerializationError` to serde deserialization error
     pub fn to_de_error<T: Error>(self) -> T {
         T::custom(self.0)
+    }
+
+    pub fn to_string(&self) -> String {
+        self.0.to_string()
     }
 }
 

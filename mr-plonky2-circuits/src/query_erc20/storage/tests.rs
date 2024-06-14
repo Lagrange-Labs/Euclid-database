@@ -1,9 +1,12 @@
+use std::array;
+
 use super::{
     inner::{InnerNodeCircuit, InnerNodeWires},
     leaf::{LeafCircuit, LeafWires, HASH_PREFIX},
     public_inputs::PublicInputs,
     CircuitInput, Parameters,
 };
+use crate::{api::lpn_storage::intermediate_node_hash, storage::lpn::leaf_hash_for_mapping};
 use crate::{
     api::ProofWithVK,
     utils::{convert_u8_slice_to_u32_fields, ToFields},
@@ -11,6 +14,11 @@ use crate::{
 use ethers::prelude::{Address, U256};
 use itertools::Itertools;
 use mrp2_test_utils::circuit::{run_circuit, UserCircuit};
+use mrp2_utils::{
+    eth::left_pad32,
+    types::{MAPPING_KEY_LEN, PACKED_MAPPING_KEY_LEN, PACKED_VALUE_LEN},
+    utils::convert_u8_to_u32_slice,
+};
 use plonky2::field::types::Sample;
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
@@ -29,7 +37,7 @@ use plonky2::{
         proof::ProofWithPublicInputs,
     },
 };
-use rand::{thread_rng, Rng};
+use rand::{rngs::StdRng, thread_rng, Rng, RngCore, SeedableRng};
 
 const D: usize = 2;
 type C = PoseidonGoldilocksConfig;
@@ -78,17 +86,29 @@ impl<'a> UserCircuit<F, D> for TestInnerNodeCircuit<'a> {
 }
 
 #[test]
-fn test_storage_leaf_circuit() {
+fn test_query_erc20_storage_leaf_circuit() {
     let mut rng = thread_rng();
     let address = Address::random();
-    let [value, total_supply, reward] = [0; 3].map(|_| U256(rng.gen::<[u64; 4]>()));
+
+    // Generate the base values to calculate rewards.
+    // Leave the first 16-bits for the rewards rate.
+    let max_total_supply = U256::MAX >> 16;
+    let [value, total_supply] = [0; 2].map(|_| U256(rng.gen::<[u64; 4]>()));
+    let total_supply = total_supply & max_total_supply;
+    // Ensure value <= total_supply.
+    let value = value & total_supply;
+    assert!(value <= total_supply);
+    let rewards_rate = U256::from(rng.gen::<u16>());
+    // Calculate the expected result.
+    let exp_query_results = rewards_rate * value / total_supply;
 
     let test_circuit = TestLeafCircuit {
         c: LeafCircuit {
+            query_address: address,
             address,
             value,
             total_supply,
-            reward,
+            rewards_rate,
         },
     };
 
@@ -96,31 +116,57 @@ fn test_storage_leaf_circuit() {
     let pi = PublicInputs::<GoldilocksField>::from_slice(&proof.public_inputs);
 
     // Calculate the expected hash:
-    // C = poseidon("LEAF" || pack_u32(address) || pack_u32(value))
-    let prefix: Vec<_> = HASH_PREFIX
-        .iter()
-        .map(|v| GoldilocksField::from_canonical_u8(*v))
-        .collect();
-    let packed_address = convert_u8_slice_to_u32_fields(&address.0);
+    // C = poseidon(pack_u32(address) || pack_u32(value))
     let mut bytes = [0; 32];
     value.to_little_endian(&mut bytes);
-    let packed_value = convert_u8_slice_to_u32_fields(&bytes);
-    let inputs: Vec<_> = prefix
-        .into_iter()
-        .chain(packed_address)
-        .chain(packed_value)
-        .collect();
-    let exp_c = hash_n_to_hash_no_pad::<_, PoseidonPermutation<_>>(&inputs);
+    let hash_bytes = leaf_hash_for_mapping(&address.to_fixed_bytes(), &bytes);
+    let exp_c = HashOut::from_bytes(&hash_bytes);
 
-    assert_eq!(pi.c(), exp_c);
-    assert_eq!(pi.x(), address);
-    // TODO
-    // assert_eq!(pi.v(), reward * value / total_supply);
-    assert_eq!(pi.r(), reward);
+    assert_eq!(pi.root_hash(), exp_c);
+    assert_eq!(pi.query_user_address(), address);
+    assert_eq!(pi.query_results(), exp_query_results);
+    assert_eq!(pi.query_rewards_rate(), rewards_rate);
+
+    // check that the circuit fails if there is an overflow
+    let value = U256::max_value();
+    let rewards_rate = U256::max_value();
+    let test_circuit = TestLeafCircuit {
+        c: LeafCircuit {
+            query_address: address,
+            address,
+            value,
+            total_supply,
+            rewards_rate,
+        },
+    };
+
+    assert!(
+        std::panic::catch_unwind(|| run_circuit::<_, D, C, _>(test_circuit)).is_err(),
+        "leaf storage circuit didnn't catch overflow"
+    );
+
+    // check that the circuit fails if there is a division by zero
+    let value = U256::one();
+    let rewards_rate = U256::one();
+    let total_supply = U256::zero();
+    let test_circuit = TestLeafCircuit {
+        c: LeafCircuit {
+            query_address: address,
+            address,
+            value,
+            total_supply,
+            rewards_rate,
+        },
+    };
+
+    assert!(
+        std::panic::catch_unwind(|| run_circuit::<_, D, C, _>(test_circuit)).is_err(),
+        "leaf storage circuit didnn't catch division by zero"
+    );
 }
 
 #[test]
-fn test_storage_inner_node_circuit() {
+fn test_query_erc20_storage_inner_node_circuit() {
     let mut rng = thread_rng();
     let child_pi_slice = &rng
         .gen::<[u32; PublicInputs::<Target>::TOTAL_LEN]>()
@@ -137,16 +183,14 @@ fn test_storage_inner_node_circuit() {
     let proof = run_circuit::<_, D, C, _>(test_circuit);
     let [pi, child_pi] = [&proof.public_inputs, child_pi_slice]
         .map(|pi| PublicInputs::<GoldilocksField>::from_slice(pi));
-    let inputs: Vec<_> = unproved_hash
-        .elements
-        .into_iter()
-        .chain(child_pi.c().elements)
-        .collect();
-    let exp_c = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(&inputs);
-    assert_eq!(pi.c(), exp_c);
-    assert_eq!(pi.x(), child_pi.x());
-    assert_eq!(pi.v(), child_pi.v());
-    assert_eq!(pi.r(), child_pi.r());
+    let exp_c = HashOut::from_bytes(&intermediate_node_hash(
+        &unproved_hash.to_bytes().try_into().unwrap(),
+        &child_pi.root_hash().to_bytes().try_into().unwrap(),
+    ));
+    assert_eq!(pi.root_hash(), exp_c);
+    assert_eq!(pi.query_user_address(), child_pi.query_user_address());
+    assert_eq!(pi.query_results(), child_pi.query_results());
+    assert_eq!(pi.query_rewards_rate(), child_pi.query_rewards_rate());
 
     let test_circuit = TestInnerNodeCircuit {
         c: InnerNodeCircuit {
@@ -159,28 +203,32 @@ fn test_storage_inner_node_circuit() {
     let proof = run_circuit::<_, D, C, _>(test_circuit);
     let [pi, child_pi] = [&proof.public_inputs, child_pi_slice]
         .map(|pi| PublicInputs::<GoldilocksField>::from_slice(pi));
-    let inputs: Vec<_> = child_pi
-        .c()
-        .elements
-        .into_iter()
-        .chain(unproved_hash.elements)
-        .collect();
-    let exp_c = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(&inputs);
-    assert_eq!(pi.c(), exp_c);
-    assert_eq!(pi.x(), child_pi.x());
-    assert_eq!(pi.v(), child_pi.v());
-    assert_eq!(pi.r(), child_pi.r());
+    let exp_c = HashOut::from_bytes(&intermediate_node_hash(
+        &child_pi.root_hash().to_bytes().try_into().unwrap(),
+        &unproved_hash.to_bytes().try_into().unwrap(),
+    ));
+    assert_eq!(pi.root_hash(), exp_c);
+    assert_eq!(pi.query_user_address(), child_pi.query_user_address());
+    assert_eq!(pi.query_results(), child_pi.query_results());
+    assert_eq!(pi.query_rewards_rate(), child_pi.query_rewards_rate());
 }
 
 #[test]
-fn test_storage_api() {
+fn test_query_erc20_storage_api() {
     let params = Parameters::build();
 
     let mut rng = thread_rng();
     let address = Address::random();
-    let [value, total_supply, reward] = [0; 3].map(|_| U256(rng.gen::<[u64; 4]>()));
+    // generate U256 from u128 to be sure to avoid overflows when multiplying
+    let [value, total_supply, rewards_rate] = [0; 3].map(|_| U256::from(rng.gen::<u128>()));
     let leaf = params
-        .generate_proof(CircuitInput::new_leaf(address, value, total_supply, reward))
+        .generate_proof(CircuitInput::new_leaf(
+            address,
+            address,
+            value,
+            total_supply,
+            rewards_rate,
+        ))
         .unwrap();
     params
         .leaf_circuit

@@ -33,12 +33,19 @@ pub enum CircuitInput {
 }
 
 impl CircuitInput {
-    pub fn new_leaf(address: Address, value: U256, total_supply: U256, reward: U256) -> Self {
+    pub fn new_leaf(
+        address: Address,
+        query_address: Address,
+        value: U256,
+        total_supply: U256,
+        rewards_rate: U256,
+    ) -> Self {
         CircuitInput::Leaf(LeafCircuit {
+            query_address,
             address,
             value,
             total_supply,
-            reward,
+            rewards_rate,
         })
     }
 

@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use mrp2_utils::u256::CircuitBuilderU256;
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::{hash_types::NUM_HASH_OUT_ELTS, poseidon::PoseidonHash},
@@ -8,7 +9,7 @@ use plonky2::{
 use recursion_framework::circuit_builder::CircuitLogicWires;
 use serde::{Deserialize, Serialize};
 
-use crate::{array::Array, group_hashing::CircuitBuilderGroupHashing};
+use crate::array::Array;
 
 use super::BlockPublicInputs;
 
@@ -49,22 +50,32 @@ impl FullNodeCircuit {
             inputs[1].mapping_slot_length(),
         );
 
+        // block_number[0] == block_number[1] - range
+        let right_min = b.sub(inputs[1].block_number(), inputs[1].range());
+        let left_max = inputs[0].block_number();
+        b.connect(left_max, right_min);
+
         let root = b.hash_n_to_hash_no_pad::<PoseidonHash>(Vec::from(to_hash.arr));
-        let new_range_min_bound = b.sub(inputs[0].block_number(), inputs[0].range());
-        let new_range_max_bound = inputs[1].block_number();
-        let new_range_length = b.sub(new_range_max_bound, new_range_min_bound);
-        let digest = b.add_curve_point(&[inputs[0].digest(), inputs[1].digest()]);
+        let new_upper_block = inputs[1].block_number();
+        let new_range_length = b.add(inputs[0].range(), inputs[1].range());
+        let (new_result, overflow) =
+            b.add_u256(&inputs[0].query_results(), &inputs[1].query_results());
+        // ensure the prover is not trying to obtain invalid results by overflowing the mul
+        let _false = b._false();
+        b.connect(overflow.0, _false.target);
+        b.enforce_equal_u256(&inputs[0].rewards_rate(), &inputs[1].rewards_rate());
 
         BlockPublicInputs::<Target>::register(
             b,
-            new_range_max_bound,
+            new_upper_block,
             new_range_length,
             &root,
             &inputs[0].smart_contract_address(),
             &inputs[0].user_address(),
             inputs[0].mapping_slot(),
             inputs[0].mapping_slot_length(),
-            digest,
+            new_result,
+            inputs[0].rewards_rate(),
         );
 
         FullNodeWires {}

@@ -13,7 +13,7 @@ use plonky2::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::serialization::{
+use mrp2_utils::serialization::{
     circuit_data_serialization::SerializableRichField, deserialize, serialize,
 };
 
@@ -188,7 +188,7 @@ mod tests {
             tests::{RecursiveCircuitWires, NUM_PUBLIC_INPUTS_TEST_CIRCUITS},
             CircuitLogicWires,
         },
-        universal_verifier_gadget::wrap_circuit::WrapCircuit,
+        universal_verifier_gadget::WrapCircuit,
     };
 
     use super::*;

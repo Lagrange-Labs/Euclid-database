@@ -1,27 +1,35 @@
 use super::{
     block,
-    revelation::{self, circuit::RevelationRecursiveInput, num_io},
+    revelation::{self, num_io},
     state::{self, CircuitInputsInternal},
     storage,
 };
+
+pub use super::block::CircuitInput as BlockCircuitInput;
+pub use super::revelation::RevelationRecursiveInput;
+pub use super::state::CircuitInput as StateCircuitInput;
+pub use super::storage::CircuitInput as StorageCircuitInput;
+
 use crate::api::{BlockDBCircuitInfo, C, D, F};
-use anyhow::Result;
 use plonky2::{
-    hash::poseidon::PoseidonHash, plonk::circuit_data::CircuitData, plonk::config::Hasher,
+    hash::poseidon::PoseidonHash,
+    plonk::{circuit_data::CircuitData, config::Hasher},
 };
 use recursion_framework::framework::RecursiveCircuits;
 use serde::{Deserialize, Serialize};
 
+use anyhow::Result;
+
 /// L is the number of elements we allow to expose in the result
 pub enum CircuitInput<const L: usize> {
-    /// Input to be provided to generate a proof for the storage tree circuit of query2
+    /// Input to be provided to generate a proof for the storage tree circuit of query-erc20
     Storage(storage::CircuitInput),
-    /// Input to be provided to generate a proof for the sttate tree circuit of query2
+    /// Input to be provided to generate a proof for the sttate tree circuit of query-erc20
     State(state::CircuitInput),
-    /// Input to be provided to generate a proof for the block DB circuit of query2
+    /// Input to be provided to generate a proof for the block DB circuit of query-erc20
     Block(block::CircuitInput),
-    /// Input to be provided to generate a proof for the final revelation circuit of query2
-    Revelation(revelation::RevelationInput<L>),
+    /// Input to be provided to generate a proof for the revelation circuit of query-erc20
+    Revelation(revelation::RevelationErcInput<L>),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -92,8 +100,7 @@ where
             )),
         }
     }
-
-    /// Circuit data for the final proof being generated
+    /// Circuit data for the final revelation circuit
     pub fn final_proof_circuit_data(&self) -> &CircuitData<F, C, D> {
         self.revelation.circuit_data()
     }

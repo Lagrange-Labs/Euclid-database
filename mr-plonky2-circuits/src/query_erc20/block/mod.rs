@@ -1,42 +1,37 @@
-use std::fmt::{self, Debug};
-
+use self::{
+    full_node::{FullNodeCircuit, FullNodeWires},
+    partial_node::{PartialNodeCircuitInputs, PartialNodeWires},
+};
+use crate::{
+    api::{default_config, ProofWithVK, C, D, F},
+    types::{HashOutput, PackedAddressTarget, PACKED_ADDRESS_LEN, PACKED_VALUE_LEN},
+    utils::convert_u32_fields_to_u8_vec,
+};
+use anyhow::Result;
+use ethers::prelude::U256;
 use itertools::Itertools;
+use mrp2_utils::{
+    types::PACKED_U256_LEN,
+    u256::{CircuitBuilderU256, UInt256Target},
+    utils::convert_u32_fields_to_u256,
+};
 use plonky2::{
-    field::{
-        extension::{quintic::QuinticExtension, FieldExtension},
-        goldilocks_field::GoldilocksField,
-        types::Field,
-    },
+    field::{goldilocks_field::GoldilocksField, types::Field},
     hash::hash_types::{HashOut, HashOutTarget, NUM_HASH_OUT_ELTS},
     iop::target::Target,
     plonk::{circuit_builder::CircuitBuilder, config::GenericHashOut},
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
-use plonky2_ecgfp5::{
-    curve::curve::WeierstrassPoint,
-    gadgets::curve::{CircuitBuilderEcGFp5, CurveTarget},
-};
+use plonky2_ecgfp5::curve::curve::WeierstrassPoint;
 use recursion_framework::{
     circuit_builder::{CircuitWithUniversalVerifier, CircuitWithUniversalVerifierBuilder},
     framework::RecursiveCircuits,
 };
 use serde::{Deserialize, Serialize};
-
-use crate::{
-    api::{default_config, ProofWithVK, C, D, F},
-    types::{
-        HashOutput, PackedAddressTarget, PackedValueTarget, CURVE_TARGET_LEN, PACKED_ADDRESS_LEN,
-        PACKED_VALUE_LEN,
-    },
-    utils::{convert_point_to_curve_target, convert_slice_to_curve_point},
+use std::{
+    array::from_fn as create_array,
+    fmt::{self, Debug},
 };
-
-use self::{
-    full_node::{FullNodeCircuit, FullNodeWires},
-    partial_node::{PartialNodeCircuitInputs, PartialNodeWires},
-};
-
-use anyhow::Result;
 
 pub mod full_node;
 pub mod partial_node;
@@ -187,20 +182,23 @@ pub enum Inputs {
     MappingSlot,
     /// S - storage slot length
     StorageSlotLength,
-    /// D - aggregated digest
-    Digest,
+    /// V - Aggregate result of the query
+    QueryResult,
+    /// R - Rewards rate of the query
+    RewardsRate,
 }
-const NUM_ELEMENTS: usize = 8;
+const NUM_ELEMENTS: usize = 9;
 impl Inputs {
     const SIZES: [usize; NUM_ELEMENTS] = [
         1,
         1,
         NUM_HASH_OUT_ELTS,
-        PackedAddressTarget::LEN,
-        PACKED_VALUE_LEN,
+        PACKED_ADDRESS_LEN,
+        PACKED_ADDRESS_LEN,
         1,
         1,
-        CURVE_TARGET_LEN,
+        PACKED_U256_LEN, // result
+        PACKED_U256_LEN, // reward rate
     ];
 
     const fn total_len() -> usize {
@@ -212,6 +210,7 @@ impl Inputs {
             + Self::SIZES[5]
             + Self::SIZES[6]
             + Self::SIZES[7]
+            + Self::SIZES[8]
     }
 
     pub const fn len(&self) -> usize {
@@ -249,7 +248,7 @@ impl<'a, T: Clone + Copy + Debug> Debug for BlockPublicInputs<'a, T> {
             "Storage slot length: {:?}",
             self.storage_slot_length_raw()
         )?;
-        writeln!(f, "Digest: {:?}", self.digest_raw())
+        writeln!(f, "Query Results: {:?}", self.query_results_raw())
     }
 }
 
@@ -284,14 +283,12 @@ impl<'a, T: Clone + Copy> BlockPublicInputs<'a, T> {
         &self.inputs[Inputs::StorageSlotLength.range()]
     }
 
-    fn digest_raw(
-        &self,
-    ) -> (
-        [T; crate::group_hashing::EXTENSION_DEGREE],
-        [T; crate::group_hashing::EXTENSION_DEGREE],
-        T,
-    ) {
-        convert_slice_to_curve_point(&self.inputs[Inputs::Digest.range()])
+    fn query_results_raw(&self) -> [T; PACKED_U256_LEN] {
+        self.inputs[Inputs::QueryResult.range()].try_into().unwrap()
+    }
+
+    fn rewards_rate_raw(&self) -> [T; PACKED_U256_LEN] {
+        self.inputs[Inputs::RewardsRate.range()].try_into().unwrap()
     }
 
     pub(crate) const fn total_len() -> usize {
@@ -324,8 +321,8 @@ impl<'a> BlockPublicInputs<'a, Target> {
         .unwrap()
     }
 
-    pub(crate) fn user_address(&self) -> PackedValueTarget {
-        PackedValueTarget::try_from(
+    pub(crate) fn user_address(&self) -> PackedAddressTarget {
+        PackedAddressTarget::try_from(
             self.user_address_raw()
                 .iter()
                 .map(|&t| U32Target(t))
@@ -338,12 +335,18 @@ impl<'a> BlockPublicInputs<'a, Target> {
         self.mapping_slot_raw()[0]
     }
 
-    pub(crate) fn digest(&self) -> CurveTarget {
-        convert_point_to_curve_target(self.digest_raw())
-    }
-
     pub(crate) fn mapping_slot_length(&self) -> Target {
         self.storage_slot_length_raw()[0]
+    }
+
+    pub(crate) fn query_results(&self) -> UInt256Target {
+        let raw = self.query_results_raw();
+        UInt256Target::new_from_target_limbs(&raw).expect("invalid length of slice inputs")
+    }
+
+    pub(crate) fn rewards_rate(&self) -> UInt256Target {
+        let raw = self.rewards_rate_raw();
+        UInt256Target::new_from_target_limbs(&raw).expect("invalid length of slice inputs")
     }
 
     pub fn register(
@@ -352,10 +355,11 @@ impl<'a> BlockPublicInputs<'a, Target> {
         range: Target,
         root: &HashOutTarget,
         smc_address: &PackedAddressTarget,
-        user_address: &PackedValueTarget,
+        user_address: &PackedAddressTarget,
         mapping_slot: Target,
         mapping_slot_length: Target,
-        digest: CurveTarget,
+        results: UInt256Target,
+        rewards_rate: UInt256Target,
     ) {
         b.register_public_input(block_number);
         b.register_public_input(range);
@@ -364,7 +368,8 @@ impl<'a> BlockPublicInputs<'a, Target> {
         user_address.register_as_public_input(b);
         b.register_public_input(mapping_slot);
         b.register_public_input(mapping_slot_length);
-        b.register_curve_public_input(digest);
+        b.register_public_input_u256(&results);
+        b.register_public_input_u256(&rewards_rate);
     }
 }
 
@@ -375,10 +380,11 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
         range: GoldilocksField,
         root: HashOut<GoldilocksField>,
         smart_contract_address: &[GoldilocksField; PACKED_ADDRESS_LEN],
-        user_address: &[GoldilocksField; PACKED_VALUE_LEN],
+        user_address: &[GoldilocksField; PACKED_ADDRESS_LEN],
         mapping_slot: GoldilocksField,
         storage_slot_length: GoldilocksField,
-        digest: WeierstrassPoint,
+        query_results: &[GoldilocksField; PACKED_U256_LEN],
+        rewards_rate: &[GoldilocksField; PACKED_U256_LEN],
     ) -> [GoldilocksField; Self::total_len()] {
         let mut inputs = vec![];
         inputs.push(block_number);
@@ -388,9 +394,13 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
         inputs.extend_from_slice(user_address.as_slice());
         inputs.push(mapping_slot);
         inputs.push(storage_slot_length);
-        inputs.extend_from_slice(&digest.x.0);
-        inputs.extend_from_slice(&digest.y.0);
-        inputs.push(GoldilocksField::from_bool(digest.is_inf));
+        inputs.extend_from_slice(query_results);
+        inputs.extend_from_slice(rewards_rate);
+        println!(
+            "inputs size {} vs total_len {}",
+            inputs.len(),
+            Self::total_len()
+        );
         inputs.try_into().unwrap()
     }
     pub fn block_number(&self) -> GoldilocksField {
@@ -417,29 +427,19 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
         self.mapping_slot_raw()[0]
     }
 
-    pub fn digest(&self) -> WeierstrassPoint {
-        let (x, y, is_inf) = self.digest_raw();
-        WeierstrassPoint {
-            x: QuinticExtension::<GoldilocksField>::from_basefield_array(std::array::from_fn::<
-                GoldilocksField,
-                5,
-                _,
-            >(|i| x[i])),
-            y: QuinticExtension::<GoldilocksField>::from_basefield_array(std::array::from_fn::<
-                GoldilocksField,
-                5,
-                _,
-            >(|i| y[i])),
-            is_inf: is_inf.is_nonzero(),
-        }
-    }
-
     pub(crate) fn mapping_slot_length(&self) -> GoldilocksField {
         self.storage_slot_length_raw()[0]
     }
+
+    pub(crate) fn rewards_rate(&self) -> U256 {
+        convert_u32_fields_to_u256(&self.rewards_rate_raw())
+    }
+
+    pub(crate) fn query_results(&self) -> U256 {
+        convert_u32_fields_to_u256(&self.query_results_raw())
+    }
 }
 
-/* TODO
 #[cfg(test)]
 mod tests {
     use ethers::types::Address;
@@ -453,7 +453,9 @@ mod tests {
     use recursion_framework::framework_testing::TestingRecursiveCircuits;
     use serial_test::serial;
 
+    use crate::api::ProofWithVK;
     use crate::query_erc20::{
+        block::{BlockPublicInputs, NUM_IO},
         state::{tests::generate_inputs_for_state_circuit, Parameters as StateParams},
         storage::public_inputs::PublicInputs as StorageInputs,
     };
@@ -464,10 +466,11 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_block_circuit_api() {
+    fn test_query_erc20_block_circuit_api() {
         const NUM_STORAGE_INPUTS: usize = StorageInputs::<Target>::TOTAL_LEN;
-        const LENGTH_SLOT: u32 = 42;
-        const MAPPING_SLOT: u32 = 24;
+        const BLOCK_NUMBER: u32 = 123456;
+        const LENGTH_SLOT: u8 = 42;
+        const MAPPING_SLOT: u8 = 24;
         let smart_contract_address = Address::random();
         let user_address = Address::random();
         let testing_framework = TestingRecursiveCircuits::<F, C, D, NUM_STORAGE_INPUTS>::default();
@@ -478,7 +481,7 @@ mod tests {
 
         let left_leaf_io = generate_inputs_for_state_circuit(
             &testing_framework,
-            0xdead,
+            Some(BLOCK_NUMBER),
             Some(LENGTH_SLOT),
             Some(MAPPING_SLOT),
             Some(smart_contract_address),
@@ -487,7 +490,7 @@ mod tests {
 
         let right_leaf_io = generate_inputs_for_state_circuit(
             &testing_framework,
-            0xbeef,
+            Some(BLOCK_NUMBER + 1),
             Some(LENGTH_SLOT),
             Some(MAPPING_SLOT),
             Some(smart_contract_address),
@@ -502,6 +505,15 @@ mod tests {
             .generate_proof(&block_circuit_params.get_block_circuit_set(), right_leaf_io)
             .unwrap();
 
+        let [left_leaf_pi, right_leaf_pi] = [&left_leaf_proof, &right_leaf_proof].map(|proof| {
+            ProofWithVK::deserialize(&proof)
+                .unwrap()
+                .proof
+                .public_inputs
+        });
+        let [left_leaf_pi, right_leaf_pi] =
+            [&left_leaf_pi, &right_leaf_pi].map(|pi| BlockPublicInputs::from(&pi[..NUM_IO]));
+
         println!("leaf proofs built");
 
         let full_node_proof = block_circuit_params
@@ -511,6 +523,18 @@ mod tests {
             .unwrap();
 
         block_circuit_params.verify_proof(&full_node_proof).unwrap();
+
+        let full_node_pi = ProofWithVK::deserialize(&full_node_proof)
+            .unwrap()
+            .proof
+            .public_inputs;
+        let full_node_pi = BlockPublicInputs::from(&full_node_pi[..NUM_IO]);
+
+        // Check if full_node_reward == left_leaf_reward + right_leaf_reward.
+        assert_eq!(
+            full_node_pi.query_results(),
+            left_leaf_pi.query_results() + right_leaf_pi.query_results()
+        );
 
         println!("full node proof built");
 
@@ -536,6 +560,17 @@ mod tests {
         block_circuit_params
             .verify_proof(&partial_node_proof)
             .unwrap();
+
+        let partial_node_pi = ProofWithVK::deserialize(&partial_node_proof)
+            .unwrap()
+            .proof
+            .public_inputs;
+        let partial_node_pi = BlockPublicInputs::from(&partial_node_pi[..NUM_IO]);
+
+        // Check if partial_node_reward == full_node_reward.
+        assert_eq!(
+            partial_node_pi.query_results(),
+            full_node_pi.query_results()
+        );
     }
 }
-*/

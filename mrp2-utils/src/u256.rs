@@ -1,9 +1,18 @@
 //! Gadget for U256 arithmetic, with overflow checking
 //!
 
-use std::{array, usize};
+use std::{
+    array::{self, from_fn as create_array},
+    usize,
+};
 
-use anyhow::Result;
+use crate::{
+    serialization::{
+        circuit_data_serialization::SerializableRichField, FromBytes, SerializationError, ToBytes,
+    },
+    utils::convert_u8_to_u32_slice,
+};
+use anyhow::{ensure, Result};
 use ethers::types::U256;
 use itertools::Itertools;
 use plonky2::{
@@ -20,18 +29,13 @@ use plonky2_crypto::u32::{
     arithmetic_u32::{CircuitBuilderU32, U32Target},
     witness::WitnessU32,
 };
-use recursion_framework::serialization::{
-    circuit_data_serialization::SerializableRichField, FromBytes, SerializationError, ToBytes,
-};
 use serde::{Deserialize, Serialize};
-
-use crate::utils::convert_u8_to_u32_slice;
 
 /// Number of limbs employed to represent a 256-bit unsigned integer
 pub const NUM_LIMBS: usize = 8;
 
 /// Circuit representation of u256
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct UInt256Target([U32Target; NUM_LIMBS]);
 
 pub trait CircuitBuilderU256<F: SerializableRichField<D>, const D: usize> {
@@ -42,7 +46,7 @@ pub trait CircuitBuilderU256<F: SerializableRichField<D>, const D: usize> {
     fn add_virtual_u256(&mut self) -> UInt256Target;
 
     /// Register a UInt256Target as public input
-    fn register_as_public_input(&mut self, target: &UInt256Target);
+    fn register_public_input_u256(&mut self, target: &UInt256Target);
 
     /// Return the constant target representing 0_u256
     fn zero_u256(&mut self) -> UInt256Target;
@@ -87,7 +91,14 @@ pub trait CircuitBuilderU256<F: SerializableRichField<D>, const D: usize> {
     fn is_zero(&mut self, target: &UInt256Target) -> BoolTarget;
 
     /// Enforce equality between 2 UInt256Target
-    fn enforce_equal(&mut self, left: &UInt256Target, right: &UInt256Target);
+    fn enforce_equal_u256(&mut self, left: &UInt256Target, right: &UInt256Target);
+
+    fn select_u256(
+        &mut self,
+        cond: BoolTarget,
+        left: &UInt256Target,
+        right: &UInt256Target,
+    ) -> UInt256Target;
 }
 
 pub trait WitnessWriteU256<F: RichField> {
@@ -115,7 +126,7 @@ impl<F: SerializableRichField<D>, const D: usize> CircuitBuilderU256<F, D>
         target
     }
 
-    fn register_as_public_input(&mut self, target: &UInt256Target) {
+    fn register_public_input_u256(&mut self, target: &UInt256Target) {
         target
             .0
             .iter()
@@ -288,12 +299,12 @@ impl<F: SerializableRichField<D>, const D: usize> CircuitBuilderU256<F, D>
         let (computed_dividend, carry) = self.add_u256(&prod, &remainder);
         // ensure no overflow occurred during addition
         self.connect(carry.0, zero);
-        self.enforce_equal(left, &computed_dividend);
+        self.enforce_equal_u256(left, &computed_dividend);
 
         (quotient, remainder, is_zero)
     }
 
-    fn enforce_equal(&mut self, left: &UInt256Target, right: &UInt256Target) {
+    fn enforce_equal_u256(&mut self, left: &UInt256Target, right: &UInt256Target) {
         left.0
             .iter()
             .zip(right.0.iter())
@@ -329,6 +340,15 @@ impl<F: SerializableRichField<D>, const D: usize> CircuitBuilderU256<F, D>
         // left < right iff left - right requires a borrow
         let (_, borrow) = self.sub_u256(left, right);
         BoolTarget::new_unsafe(borrow.0)
+    }
+    fn select_u256(
+        &mut self,
+        cond: BoolTarget,
+        left: &UInt256Target,
+        right: &UInt256Target,
+    ) -> UInt256Target {
+        let limbs = create_array(|i| U32Target(self.select(cond, left.0[i].0, right.0[i].0)));
+        UInt256Target(limbs)
     }
 }
 
@@ -366,6 +386,13 @@ impl UInt256Target {
     pub fn new_from_limbs(limbs: &[U32Target]) -> Result<Self> {
         Ok(UInt256Target(limbs.try_into()?))
     }
+
+    /// Build a new `UInt256Target` from its limbs in target, provided in little-endian order
+    pub fn new_from_target_limbs(limbs: &[Target]) -> Result<Self> {
+        ensure!(limbs.len() == 8, "limbs len size != 8");
+        Ok(UInt256Target(create_array(|i| U32Target(limbs[i]))))
+    }
+
     /// Utility function for serialization of UInt256Target
     fn write_to_bytes(&self, buffer: &mut Vec<u8>) {
         for i in 0..NUM_LIMBS {
@@ -407,8 +434,25 @@ impl FromBytes for UInt256Target {
     }
 }
 
+trait ToFields {
+    fn to_targets<F: RichField>(&self) -> Vec<F>;
+}
+
+impl ToFields for U256 {
+    fn to_targets<F: RichField>(&self) -> Vec<F> {
+        let mut bytes = [0u8; 32];
+        self.to_little_endian(&mut bytes);
+        let limbs = convert_u8_to_u32_slice(&bytes);
+        assert_eq!(limbs.len(), NUM_LIMBS);
+        limbs
+            .into_iter()
+            .map(|l| F::from_canonical_u32(l))
+            .collect()
+    }
+}
+
 /// Generator employed to fill witness values needed for division of UInt256Targets
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct UInt256DivGenerator {
     dividend: UInt256Target,
     divisor: UInt256Target,
@@ -478,13 +522,21 @@ mod tests {
         field::types::Field,
         iop::witness::PartialWitness,
         plonk::{
-            circuit_builder::CircuitBuilder, config::PoseidonGoldilocksConfig,
+            circuit_builder::CircuitBuilder,
+            circuit_data::{CircuitConfig, CircuitData},
+            config::PoseidonGoldilocksConfig,
             proof::ProofWithPublicInputs,
         },
     };
     use rand::{thread_rng, Rng};
+    use serde::{Deserialize, Serialize};
 
-    use crate::{types::GFp, u256::NUM_LIMBS, utils::convert_u32_fields_to_u256};
+    use crate::{
+        serialization::{deserialize, serialize},
+        types::GFp,
+        u256::NUM_LIMBS,
+        utils::convert_u32_fields_to_u256,
+    };
 
     use super::{CircuitBuilderU256, UInt256Target, WitnessWriteU256};
 
@@ -522,7 +574,7 @@ mod tests {
         fn build(c: &mut CircuitBuilder<F, D>) -> Self::Wires {
             let (left, right) = TestOperationsCircuit::build(c);
             let (res, carry) = c.add_u256(&left, &right);
-            c.register_as_public_input(&res);
+            c.register_public_input_u256(&res);
             c.register_public_input(carry.0);
             (left, right)
         }
@@ -541,7 +593,7 @@ mod tests {
         fn build(c: &mut CircuitBuilder<F, D>) -> Self::Wires {
             let (left, right) = TestOperationsCircuit::build(c);
             let (res, borrow) = c.sub_u256(&left, &right);
-            c.register_as_public_input(&res);
+            c.register_public_input_u256(&res);
             c.register_public_input(borrow.0);
             (left, right)
         }
@@ -560,7 +612,7 @@ mod tests {
         fn build(c: &mut CircuitBuilder<F, D>) -> Self::Wires {
             let (left, right) = TestOperationsCircuit::build(c);
             let (res, carry) = c.mul_u256(&left, &right);
-            c.register_as_public_input(&res);
+            c.register_public_input_u256(&res);
             c.register_public_input(carry.target);
             (left, right)
         }
@@ -579,8 +631,8 @@ mod tests {
         fn build(c: &mut CircuitBuilder<F, D>) -> Self::Wires {
             let (left, right) = TestOperationsCircuit::build(c);
             let (quotient, remainder, div_zero) = c.div_u256(&left, &right);
-            c.register_as_public_input(&quotient);
-            c.register_as_public_input(&remainder);
+            c.register_public_input_u256(&quotient);
+            c.register_public_input_u256(&remainder);
             c.register_public_input(div_zero.target);
             (left, right)
         }
@@ -945,5 +997,35 @@ mod tests {
         let circuit = TestIsZeroCircuit(U256::zero());
         let proof = run_circuit::<F, D, C, _>(circuit);
         assert_eq!(F::ONE, proof.public_inputs[0]);
+    }
+
+    #[test]
+    fn test_serialization_with_u256_div() {
+        let mut b = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
+        let wires = TestDivCircuit::build(&mut b);
+        let data = b.build();
+
+        // helper struct used to easily serialzie circut data for div circuit
+        #[derive(Serialize, Deserialize)]
+        struct TestDivParams {
+            #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
+            data: CircuitData<F, C, D>,
+        }
+
+        let params = TestDivParams { data };
+
+        // serialize and deserialize circuit data
+        let serialized_params = bincode::serialize(&params).unwrap();
+        let params: TestDivParams = bincode::deserialize(&serialized_params).unwrap();
+
+        // use deserialized parameters to generate a proof
+        let circuit = TestDivCircuit(TestOperationsCircuit {
+            left: U256::zero(),
+            right: U256::one(),
+        });
+        let mut pw = PartialWitness::new();
+        circuit.prove(&mut pw, &wires);
+        let proof = params.data.prove(pw).unwrap();
+        params.data.verify(proof).unwrap();
     }
 }

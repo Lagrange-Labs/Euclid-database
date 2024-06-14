@@ -1,3 +1,11 @@
+use crate::{
+    circuit_builder::{public_input_targets, CircuitLogicWires, CircuitWithUniversalVerifier},
+    universal_verifier_gadget::{
+        verifier_gadget::{UniversalVerifierBuilder, UniversalVerifierTarget},
+        CircuitSet, CircuitSetDigest, CircuitSetTarget,
+    },
+};
+use mrp2_utils::serialization::circuit_data_serialization::SerializableRichField;
 use plonky2::{
     field::extension::Extendable,
     hash::hash_types::{HashOut, RichField},
@@ -10,15 +18,6 @@ use plonky2::{
     },
 };
 use serde::{Deserialize, Serialize};
-
-use crate::{
-    circuit_builder::{public_input_targets, CircuitLogicWires, CircuitWithUniversalVerifier},
-    serialization::circuit_data_serialization::SerializableRichField,
-    universal_verifier_gadget::{
-        verifier_gadget::{UniversalVerifierBuilder, UniversalVerifierTarget},
-        CircuitSet, CircuitSetDigest, CircuitSetTarget,
-    },
-};
 
 use anyhow::Result;
 
@@ -286,8 +285,9 @@ pub(crate) mod tests {
         tests::{LeafCircuitWires, RecursiveCircuitWires},
         CircuitWithUniversalVerifierBuilder,
     };
-    use crate::serialization::circuit_data_serialization::SerializableRichField;
-    use crate::serialization::{deserialize, serialize};
+    use mrp2_utils::serialization::{
+        circuit_data_serialization::SerializableRichField, deserialize, serialize,
+    };
 
     use super::*;
 

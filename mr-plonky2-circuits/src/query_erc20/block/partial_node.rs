@@ -1,3 +1,4 @@
+use mrp2_utils::serialization::{deserialize, serialize};
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::hash_types::{HashOut, HashOutTarget},
@@ -7,10 +8,7 @@ use plonky2::{
     },
     plonk::circuit_builder::CircuitBuilder,
 };
-use recursion_framework::{
-    circuit_builder::CircuitLogicWires,
-    serialization::{deserialize, serialize},
-};
+use recursion_framework::circuit_builder::CircuitLogicWires;
 use serde::{Deserialize, Serialize};
 
 use crate::{api::ProofWithVK, poseidon::hash_maybe_swap};
@@ -61,7 +59,8 @@ impl PartialNodeCircuit {
             &proved.user_address(),
             proved.mapping_slot(),
             proved.mapping_slot_length(),
-            proved.digest(),
+            proved.query_results(),
+            proved.rewards_rate(),
         );
 
         PartialNodeWires {

@@ -1,5 +1,6 @@
 //! Mechanism for intermediate node, i.e. only one child proof needs to be recomputed
 
+use mrp2_utils::serialization::{deserialize, serialize};
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::hash_types::{HashOut, HashOutTarget},
@@ -9,10 +10,7 @@ use plonky2::{
     },
     plonk::circuit_builder::CircuitBuilder,
 };
-use recursion_framework::{
-    circuit_builder::CircuitLogicWires,
-    serialization::{deserialize, serialize},
-};
+use recursion_framework::circuit_builder::CircuitLogicWires;
 use serde::{Deserialize, Serialize};
 
 use crate::poseidon::hash_maybe_swap;
@@ -47,11 +45,17 @@ impl InnerNodeCircuit {
         // C = if position = 0 ? poseidon(sibling_hash || p[C]) else poseidon(p[C] || sibling_hash)
         let c = hash_maybe_swap(
             b,
-            &[proved.c().elements, unproved_hash.elements],
+            &[proved.root_hash().elements, unproved_hash.elements],
             proved_is_right,
         );
 
-        PublicInputs::<Target>::register(b, &c, &proved.x(), &proved.v(), &proved.r());
+        PublicInputs::<Target>::register(
+            b,
+            &c,
+            &proved.query_user_address(),
+            &proved.query_results(),
+            &proved.query_rewards_rate(),
+        );
 
         InnerNodeWires {
             unproved_hash,
