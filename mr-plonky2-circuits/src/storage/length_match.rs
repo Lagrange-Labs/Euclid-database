@@ -13,11 +13,11 @@ use crate::{
     utils::{convert_point_to_curve_target, convert_slice_to_curve_point},
 };
 use anyhow::Result;
-use mrp2_utils::serialization::{deserialize, serialize};
+use ethers::core::k256::pkcs8::der::Length;
 use plonky2::{
-    field::goldilocks_field::GoldilocksField,
+    field::{goldilocks_field::GoldilocksField, types::Field},
     iop::{
-        target::Target,
+        target::{BoolTarget, Target},
         witness::{PartialWitness, WitnessWrite},
     },
     plonk::{
@@ -33,6 +33,8 @@ use recursion_framework::framework::{
 };
 use serde::{Deserialize, Serialize};
 use std::array;
+
+const MAGIC_SLOT: usize = 0x123456789;
 /// This is a wrapper around an array of targets set as public inputs of any
 /// proof generated in this module. They all share the same structure.
 /// `D` Digest of the all mapping values
@@ -99,8 +101,16 @@ impl<'a, T: Copy> PublicInputs<'a, T> {
 }
 
 /// Length match circuit
-#[derive(Clone, Debug)]
-struct LengthMatchCircuit;
+#[derive(Clone, Debug, Default)]
+struct LengthMatchCircuit {
+    skip_match: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct LengthMatchWires {
+    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
+    skip_match: BoolTarget,
+}
 
 impl LengthMatchCircuit {
     /// Build for circuit.
@@ -108,13 +118,16 @@ impl LengthMatchCircuit {
         cb: &mut CircuitBuilder<GoldilocksField, 2>,
         length_pi: &[Target],
         mapping_pi: &[Target],
-    ) {
+    ) -> LengthMatchWires {
+        let true_ = cb._true();
         let length_pi = LengthPublicInputs::from(length_pi);
         let mapping_pi = MappingPublicInputs::from(mapping_pi);
 
         let mapping_slot = mapping_pi.mapping_slot();
         let length_slot = length_pi.storage_slot();
         let digest = mapping_pi.accumulator();
+
+        let skip_equal = cb.add_virtual_bool_target_safe();
 
         // The MPT key pointer must be equal to -1 after traversing from leaf to
         // root.
@@ -125,15 +138,37 @@ impl LengthMatchCircuit {
         // Constrain the entry lengths are equal.
         let length_value = length_pi.length_value();
         let n = mapping_pi.n();
-        cb.connect(length_value, n);
+        let length_equal = cb.is_equal(length_value, n);
+        let magic_slot = cb.constant(GoldilocksField::from_canonical_usize(MAGIC_SLOT));
+        let should_be_true = cb.select(skip_equal, true_.target, length_equal.target);
+        cb.connect(should_be_true, true_.target);
 
         // Constrain the MPT root hashes are same.
         let length_root_hash = length_pi.root_hash();
         let mapping_root_hash = mapping_pi.root_hash();
         length_root_hash.enforce_equal(cb, &mapping_root_hash);
 
+        let final_length_slot = cb.select(skip_equal, magic_slot, length_slot);
         // Register the public inputs.
-        PublicInputs::register(cb, &digest, &length_root_hash, mapping_slot, length_slot);
+        PublicInputs::register(
+            cb,
+            &digest,
+            &length_root_hash,
+            mapping_slot,
+            final_length_slot,
+        );
+        LengthMatchWires {
+            skip_match: skip_equal,
+        }
+    }
+
+    pub(crate) fn assign(
+        &self,
+        pw: &mut PartialWitness<GoldilocksField>,
+        wires: LengthMatchWires,
+    ) -> Result<()> {
+        pw.set_bool_target(wires.skip_match, self.skip_match);
+        Ok(())
     }
 }
 
@@ -142,6 +177,7 @@ type C = crate::api::C;
 const D: usize = crate::api::D;
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Parameters {
+    length_match_wires: LengthMatchWires,
     #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
     data: CircuitData<F, C, D>,
     #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
@@ -166,9 +202,10 @@ impl Parameters {
         let length_proof = verify_proof_fixed_circuit(&mut cb, length_extract_vk);
         let mapping_pi = mapping_proof_wires.get_public_input_targets::<F, NUM_PUBLIC_INPUTS>();
         let length_pi = length_proof.public_inputs.as_slice();
-        LengthMatchCircuit::build(&mut cb, length_pi, mapping_pi);
+        let wires = LengthMatchCircuit::build(&mut cb, length_pi, mapping_pi);
         let data = cb.build::<C>();
         Self {
+            length_match_wires: wires,
             data,
             mapping_proof_wires,
             length_proof,
@@ -182,6 +219,10 @@ impl Parameters {
         length_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<Vec<u8>> {
         let mut pw = PartialWitness::<F>::new();
+        // by default, we set to false, and then we change it for ERC20 query
+        // to accept the flag as argument.
+        LengthMatchCircuit { skip_match: false }
+            .assign(&mut pw, self.length_match_wires.clone())?;
         let (proof, vd) = mapping_proof.into();
         self.mapping_proof_wires
             .set_target(&mut pw, mapping_circuit_set, proof, vd)?;
@@ -243,7 +284,7 @@ mod tests {
     };
     use rand::{thread_rng, Rng};
     use recursion_framework::framework_testing::TestingRecursiveCircuits;
-    use std::array;
+    use std::{array, panic};
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -252,25 +293,27 @@ mod tests {
     /// Test circuit
     #[derive(Clone, Debug)]
     struct TestCircuit {
+        inputs: LengthMatchCircuit,
         length_pi: Vec<F>,
         mapping_pi: Vec<F>,
     }
 
     impl UserCircuit<F, D> for TestCircuit {
-        type Wires = (Vec<Target>, Vec<Target>);
+        type Wires = (Vec<Target>, Vec<Target>, LengthMatchWires);
 
         fn build(cb: &mut CircuitBuilder<F, D>) -> Self::Wires {
             let length_pi = cb.add_virtual_targets(LengthPublicInputs::<Target>::TOTAL_LEN);
             let mapping_pi = cb.add_virtual_targets(MappingPublicInputs::<Target>::TOTAL_LEN);
 
-            LengthMatchCircuit::build(cb, &length_pi, &mapping_pi);
+            let wires = LengthMatchCircuit::build(cb, &length_pi, &mapping_pi);
 
-            (length_pi, mapping_pi)
+            (length_pi, mapping_pi, wires)
         }
 
         fn prove(&self, pw: &mut PartialWitness<F>, wires: &Self::Wires) {
             pw.set_target_arr(&wires.0, &self.length_pi);
             pw.set_target_arr(&wires.1, &self.mapping_pi);
+            self.inputs.assign(pw, wires.2.clone()).unwrap();
         }
     }
 
@@ -288,6 +331,40 @@ mod tests {
         let mapping_pi = generate_mapping_public_inputs(length_value, &mpt_root_hash);
 
         let test_circuit = TestCircuit {
+            inputs: LengthMatchCircuit::default(),
+            length_pi,
+            mapping_pi,
+        };
+        run_circuit::<F, D, C, _>(test_circuit);
+
+        // giving different length should fail
+        let length_pi = generate_length_public_inputs(length_value + F::ONE, &mpt_root_hash);
+        let mapping_pi = generate_mapping_public_inputs(length_value, &mpt_root_hash);
+        let test_circuit = TestCircuit {
+            inputs: LengthMatchCircuit::default(),
+            length_pi,
+            mapping_pi,
+        };
+        let result = panic::catch_unwind(|| {
+            run_circuit::<F, D, C, _>(test_circuit);
+        });
+        assert!(result.is_err(), "giving different length should fail");
+    }
+    #[test]
+    fn test_length_match_circuit_magic() {
+        init_logging();
+
+        let mut rng = thread_rng();
+        let length_value = F::from_canonical_usize(0x431);
+        let mpt_root_hash: [F; PACKED_HASH_LEN] =
+            array::from_fn(|_| F::from_canonical_u32(rng.gen::<u32>()));
+
+        // give different values, this should succeed
+        let length_pi = generate_length_public_inputs(length_value + F::ONE, &mpt_root_hash);
+        let mapping_pi = generate_mapping_public_inputs(length_value, &mpt_root_hash);
+
+        let test_circuit = TestCircuit {
+            inputs: LengthMatchCircuit { skip_match: true },
             length_pi,
             mapping_pi,
         };
