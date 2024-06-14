@@ -211,6 +211,9 @@ pub fn block_db_circuit_info<const MAX_DEPTH: usize>(
     block_db_info.serialize()
 }
 #[derive(Serialize, Deserialize)]
+/// Wrapper circuit around the different type of "end circuits" we expose. Reason we need one is to be able
+/// to always keep the same succinct wrapper circuit and Groth16 circuit regardless of the end result we submit
+/// onchain.
 struct WrapCircuitParams<const L: usize> {
     query_verifier_wires: RecursiveCircuitsVerifierTarget<D>,
     #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
