@@ -1,15 +1,18 @@
 use anyhow::Result;
 use plonky2::{
     hash::poseidon::PoseidonHash,
+    iop::witness::PartialWitness,
     plonk::{
         circuit_builder::CircuitBuilder,
-        circuit_data::{CircuitConfig, VerifierCircuitData, VerifierOnlyCircuitData},
+        circuit_data::{CircuitConfig, CircuitData, VerifierCircuitData, VerifierOnlyCircuitData},
         config::{AlgebraicHasher, GenericConfig, Hasher, PoseidonGoldilocksConfig},
         proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget},
     },
 };
 use recursion_framework::{
-    framework::RecursiveCircuits,
+    framework::{
+        RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
+    },
     serialization::{circuit_data_serialization::SerializableRichField, deserialize, serialize},
 };
 use serde::{Deserialize, Serialize};
@@ -27,7 +30,8 @@ pub use crate::state::{
 
 use crate::{
     block::Inputs,
-    query2, query_erc20,
+    query2::{self, revelation::num_io},
+    query_erc20,
     state::{block_linking, lpn::api::ProofInputs},
 };
 
@@ -206,11 +210,58 @@ pub fn block_db_circuit_info<const MAX_DEPTH: usize>(
     };
     block_db_info.serialize()
 }
+#[derive(Serialize, Deserialize)]
+struct WrapCircuitParams<const L: usize> {
+    query_verifier_wires: RecursiveCircuitsVerifierTarget<D>,
+    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
+    circuit_data: CircuitData<F, C, D>,
+}
 
+impl<const L: usize> WrapCircuitParams<L>
+where
+    [(); num_io::<L>()]:,
+    [(); <PoseidonHash as Hasher<F>>::HASH_SIZE]:,
+{
+    fn build(query_circuit_set: &RecursiveCircuits<F, C, D>) -> Self {
+        let mut builder = CircuitBuilder::new(default_config());
+        let verifier_gadget = RecursiveCircuitsVerifierGagdet::<F, C, D, { num_io::<L>() }>::new(
+            default_config(),
+            query_circuit_set,
+        );
+        let query_verifier_wires = verifier_gadget.verify_proof_in_circuit_set(&mut builder);
+        // expose public inputs of verifier proof as public inputs
+        let verified_proof_pi =
+            query_verifier_wires.get_public_input_targets::<F, { num_io::<L>() }>();
+        builder.register_public_inputs(verified_proof_pi);
+        let circuit_data = builder.build();
+
+        Self {
+            query_verifier_wires,
+            circuit_data,
+        }
+    }
+
+    fn generate_proof(
+        &self,
+        query_circuit_set: &RecursiveCircuits<F, C, D>,
+        query_proof: &ProofWithVK,
+    ) -> Result<Vec<u8>> {
+        let (proof, vd) = query_proof.into();
+        let mut pw = PartialWitness::new();
+        self.query_verifier_wires
+            .set_target(&mut pw, query_circuit_set, proof, vd)?;
+        let proof = self.circuit_data.prove(pw)?;
+        serialize_proof(&proof)
+    }
+}
+
+/// Parameters for circuits proving queries
+#[derive(Serialize, Deserialize)]
 pub struct QueryParameters<const MAX_DEPTH: usize, const L: usize> {
     query2_params: query2::PublicParameters<MAX_DEPTH, L>,
     query_erc_params: query_erc20::PublicParameters<MAX_DEPTH, L>,
     query_circuit_set: RecursiveCircuits<F, C, D>,
+    wrap_circuit: WrapCircuitParams<L>,
 }
 
 impl<const MAX_DEPTH: usize, const L: usize> QueryParameters<MAX_DEPTH, L>
@@ -219,9 +270,16 @@ where
     [(); query_erc20::revelation::num_io::<L>()]:,
     [(); <PoseidonHash as Hasher<F>>::HASH_SIZE]:,
 {
+    /// Build the parameters for queries    
     pub fn build(block_db_circuit_info: &[u8]) -> Result<Self> {
         let query2_params = query2::PublicParameters::build(block_db_circuit_info)?;
         let query_erc_params = query_erc20::PublicParameters::build(block_db_circuit_info)?;
+
+        // check that ther query circuits have the same number oif public inputs
+        assert_eq!(
+            query2::revelation::num_io::<L>(),
+            query_erc20::revelation::num_io::<L>()
+        );
 
         let digests = vec![
             query2_params
@@ -236,27 +294,45 @@ where
 
         let query_circuit_set = RecursiveCircuits::new_from_circuit_digests(digests);
 
+        let wrap_circuit = WrapCircuitParams::build(&query_circuit_set);
+
         Ok(Self {
             query2_params,
             query_erc_params,
             query_circuit_set,
+            wrap_circuit,
         })
     }
-
+    /// Generate a proof for `input` employing the circuits in query parameters `self`
     pub fn generate_proof(&self, input: QueryInput<L>) -> Result<Vec<u8>> {
-        match input {
-            QueryInput::Query2(inputs) => self
-                .query2_params
-                .generate_proof(inputs, &self.query_circuit_set),
-            QueryInput::QueryErc(inputs) => self
-                .query_erc_params
-                .generate_proof(inputs, &self.query_circuit_set),
+        let (query_proof, is_revelation) = match input {
+                QueryInput::Query2(inputs) => self
+                    .query2_params
+                    .generate_proof(inputs, &self.query_circuit_set),
+                QueryInput::QueryErc(inputs) => self
+                    .query_erc_params
+                    .generate_proof(inputs, &self.query_circuit_set),
+            }?;
+        if is_revelation {
+            let query_proof = ProofWithVK::deserialize(&query_proof)?;
+            self.wrap_circuit
+            .generate_proof(&self.query_circuit_set, &query_proof)
+        } else {
+            Ok(query_proof)
         }
+        
+    }
+    /// Circuit data for the final query proof being returned by `generate_proof`
+    pub fn final_proof_circuit_data(&self) -> &CircuitData<F, C, D> {
+        &self.wrap_circuit.circuit_data
     }
 }
 
+/// Inputs for query circuits
 pub enum QueryInput<const L: usize> {
+    /// Inputs for Query2
     Query2(query2::CircuitInput<L>),
+    /// Inputs for ERC-20 query
     QueryErc(query_erc20::CircuitInput<L>),
 }
 
@@ -269,11 +345,12 @@ pub struct ProofWithVK {
 }
 
 impl ProofWithVK {
+    /// serialize a `ProofWithVK`
     pub fn serialize(&self) -> Result<Vec<u8>> {
         let buff = bincode::serialize(&self)?;
         Ok(buff)
     }
-
+    /// deserialize a `ProofWithVK`
     pub fn deserialize(buff: &[u8]) -> Result<Self> {
         let s = bincode::deserialize(buff)?;
         Ok(s)
@@ -303,13 +380,13 @@ impl
         ProofWithVK { proof, vk }
     }
 }
-
+/// Serialize a proof
 pub fn serialize_proof<F: SerializableRichField<D>, C: GenericConfig<D, F = F>, const D: usize>(
     proof: &ProofWithPublicInputs<F, C, D>,
 ) -> Result<Vec<u8>> {
     Ok(bincode::serialize(&proof)?)
 }
-
+/// Deserialize a proof
 pub fn deserialize_proof<
     F: SerializableRichField<D>,
     C: GenericConfig<D, F = F>,

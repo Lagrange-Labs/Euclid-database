@@ -1,4 +1,4 @@
-use super::{RevelationInput, RevelationPublicInputs};
+use super::{num_io, RevelationInput, RevelationPublicInputs};
 use crate::{
     api::{default_config, C, D, F},
     block::{
@@ -185,6 +185,7 @@ impl<const L: usize> RevelationCircuit<L> {
     }
 }
 
+/// Parameters emploted to build the revelation circuit employing the recursion framework
 pub struct BuilderParams {
     query_circuits: RecursiveCircuits<F, C, D>,
     block_db_circuits: RecursiveCircuits<F, C, D>,
@@ -205,6 +206,7 @@ impl BuilderParams {
     }
 }
 #[derive(Serialize, Deserialize)]
+/// Wires for revelation circuit
 pub struct RevelationRecursiveWires<const BLOCK_DB_DEPTH: usize, const L: usize> {
     revelation_wires: RevelationWires<L>,
     query_block_wires: RecursiveCircuitsVerifierTarget<D>,
@@ -222,6 +224,7 @@ pub struct RevelationRecursiveInput<const L: usize> {
 }
 
 impl<const L: usize> RevelationRecursiveInput<L> {
+    /// Initialize new input data structure from provided values
     pub fn new(
         inputs: RevelationInput<L>,
         query_block_circuit_set: RecursiveCircuits<F, C, D>,
@@ -246,7 +249,7 @@ where
 
     type Inputs = RevelationRecursiveInput<L>;
 
-    const NUM_PUBLIC_INPUTS: usize = revelation_num_io::<L>() + 1;
+    const NUM_PUBLIC_INPUTS: usize = num_io::<L>();
 
     fn circuit_logic(
         builder: &mut CircuitBuilder<F, D>,

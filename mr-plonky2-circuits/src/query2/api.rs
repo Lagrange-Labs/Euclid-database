@@ -59,28 +59,38 @@ where
     }
     /// Generate a proof for the circuit related to query2 specified by `input`,
     /// employing the corresponding parameters in `self`; the inputs necessary to
-    /// generate the proof must be provided in the `input` data structure
+    /// generate the proof must be provided in the `input` data structure.
+    /// The method returns the proof and a flag specifying whether the generated
+    /// proof is for the revelation circuit
     pub(crate) fn generate_proof(
         &self,
         input: CircuitInput<L>,
         query_circuit_set: &RecursiveCircuits<F, C, D>,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<(Vec<u8>, bool)> {
         match input {
-            CircuitInput::Storage(input) => self.storage.generate_proof(input),
-            CircuitInput::State(input) => self.state.generate_proof(
-                self.block.get_block_circuit_set(),
-                CircuitInputsInternal::from_circuit_input(
-                    input,
-                    self.storage.get_storage_circuit_set(),
-                ),
-            ),
-            CircuitInput::Block(input) => self.block.generate_proof(input),
-            CircuitInput::Revelation(inputs) => self.revelation.generate_proof(
-                query_circuit_set,
-                RevelationRecursiveInput::new(inputs, self.block.get_block_circuit_set().clone())?,
-            ),
+            CircuitInput::Storage(input) => Ok((self.storage.generate_proof(input)?, false)),
+            CircuitInput::State(input) => Ok((
+                self.state.generate_proof(
+                    self.block.get_block_circuit_set(),
+                    CircuitInputsInternal::from_circuit_input(
+                        input,
+                        self.storage.get_storage_circuit_set(),
+                    ),
+                )?,
+                false,
+            )),
+            CircuitInput::Block(input) => Ok((self.block.generate_proof(input)?, false)),
+            CircuitInput::Revelation(inputs) => Ok((
+                self.revelation.generate_proof(
+                    query_circuit_set,
+                    RevelationRecursiveInput::new(inputs, self.block.get_block_circuit_set().clone())?,
+                )?,
+                true,
+            )),
         }
     }
+    
+    /// Circuit data for the final proof being generated
     pub fn final_proof_circuit_data(&self) -> &CircuitData<F, C, D> {
         self.revelation.circuit_data()
     }

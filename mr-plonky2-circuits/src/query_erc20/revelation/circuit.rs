@@ -36,7 +36,7 @@ use crate::{
     utils::less_than,
 };
 
-use super::{RevelationErcInput, RevelationPublicInputs};
+use super::{num_io, RevelationErcInput, RevelationPublicInputs};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct RevelationWires {
@@ -185,7 +185,7 @@ where
 
     type Inputs = RevelationRecursiveInput<L>;
 
-    const NUM_PUBLIC_INPUTS: usize = revelation_num_io::<L>() + 1;
+    const NUM_PUBLIC_INPUTS: usize = num_io::<L>();
 
     fn circuit_logic(
         builder: &mut CircuitBuilder<F, D>,
