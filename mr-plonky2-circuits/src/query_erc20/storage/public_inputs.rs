@@ -1,8 +1,8 @@
-use crate::types::{PackedAddressTarget, PackedU256Target, PACKED_ADDRESS_LEN, PACKED_U256_LEN};
+use crate::types::{PackedAddressTarget, PACKED_ADDRESS_LEN, PACKED_U256_LEN};
 use crate::utils::convert_u32_fields_to_u8_vec;
 use ethers::prelude::{Address, U256};
-use mrp2_utils::utils::convert_u8_slice_to_u32_fields;
-use plonky2::field::types::Field;
+use mrp2_utils::u256::{CircuitBuilderU256, UInt256Target};
+use mrp2_utils::utils::convert_u32_fields_to_u256;
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::hash_types::{HashOut, HashOutTarget, NUM_HASH_OUT_ELTS},
@@ -61,13 +61,13 @@ impl<'a, T: Clone + Copy> PublicInputs<'a, T> {
         b: &mut CircuitBuilder<GoldilocksField, 2>,
         c: &HashOutTarget,
         x: &PackedAddressTarget,
-        v: &PackedU256Target,
-        r: &PackedU256Target,
+        value: &UInt256Target,
+        reward_rate: &UInt256Target,
     ) {
         b.register_public_inputs(&c.elements);
         x.register_as_public_input(b);
-        v.register_as_public_input(b);
-        r.register_as_public_input(b);
+        b.register_public_input_u256(value);
+        b.register_public_input_u256(reward_rate);
     }
 
     pub(crate) fn root_hash_raw(&self) -> &[T] {
@@ -95,15 +95,19 @@ impl<'a> PublicInputs<'a, Target> {
             U32Target(self.inputs[Self::QUERY_ADDRESS_OFFSET + i])
         }))
     }
-    pub fn query_results(&self) -> PackedU256Target {
-        PackedU256Target::from_array(from_fn(|i| {
-            U32Target(self.inputs[Self::QUERY_RESULT_OFFSET + i])
-        }))
+    pub fn query_results(&self) -> UInt256Target {
+        UInt256Target::new_from_target_limbs(
+            &self.inputs
+                [Self::QUERY_RESULT_OFFSET..Self::QUERY_RESULT_OFFSET + Self::QUERY_RESULT_LEN],
+        )
+        .expect("invalid length of slice inputs")
     }
-    pub fn query_rewards_rate(&self) -> PackedU256Target {
-        PackedU256Target::from_array(from_fn(|i| {
-            U32Target(self.inputs[Self::QUERY_REWARDS_RATE_OFFSET + i])
-        }))
+    pub fn query_rewards_rate(&self) -> UInt256Target {
+        UInt256Target::new_from_target_limbs(
+            &self.inputs[Self::QUERY_REWARDS_RATE_OFFSET
+                ..Self::QUERY_REWARDS_RATE_OFFSET + Self::QUERY_REWARDS_RATE_LEN],
+        )
+        .expect("invalid length of slice inputs")
     }
 }
 
@@ -115,15 +119,18 @@ impl<'a> PublicInputs<'a, GoldilocksField> {
         Address::from_slice(&convert_u32_fields_to_u8_vec(self.query_user_address_raw()))
     }
     pub fn query_results(&self) -> U256 {
-        U256::from_little_endian(&convert_u32_fields_to_u8_vec(self.query_results_raw()))
+        convert_u32_fields_to_u256(self.query_results_raw())
     }
     pub fn query_rewards_rate(&self) -> U256 {
-        U256::from_little_endian(&convert_u32_fields_to_u8_vec(self.query_rewards_rate_raw()))
+        convert_u32_fields_to_u256(self.query_rewards_rate_raw())
     }
 }
 
 #[cfg(test)]
 mod test {
+    use mrp2_utils::utils::convert_u8_slice_to_u32_fields;
+    use plonky2::field::types::Field;
+
     use super::*;
     impl<'a> PublicInputs<'a, GoldilocksField> {
         /// Writes the parts of the public inputs into the provided target array.

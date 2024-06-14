@@ -5,10 +5,16 @@ use self::{
 use crate::{
     api::{default_config, ProofWithVK, C, D, F},
     types::{HashOutput, PackedAddressTarget, PACKED_ADDRESS_LEN, PACKED_VALUE_LEN},
+    utils::convert_u32_fields_to_u8_vec,
 };
 use anyhow::Result;
+use ethers::prelude::U256;
 use itertools::Itertools;
-use mrp2_utils::types::{PackedU256Target, PACKED_U256_LEN};
+use mrp2_utils::{
+    types::PACKED_U256_LEN,
+    u256::{CircuitBuilderU256, UInt256Target},
+    utils::convert_u32_fields_to_u256,
+};
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::hash_types::{HashOut, HashOutTarget, NUM_HASH_OUT_ELTS},
@@ -333,14 +339,14 @@ impl<'a> BlockPublicInputs<'a, Target> {
         self.storage_slot_length_raw()[0]
     }
 
-    pub(crate) fn query_results(&self) -> PackedU256Target {
+    pub(crate) fn query_results(&self) -> UInt256Target {
         let raw = self.query_results_raw();
-        PackedU256Target::from_array(create_array(|i| U32Target(raw[i])))
+        UInt256Target::new_from_target_limbs(&raw).expect("invalid length of slice inputs")
     }
 
-    pub(crate) fn rewards_rate(&self) -> PackedU256Target {
+    pub(crate) fn rewards_rate(&self) -> UInt256Target {
         let raw = self.rewards_rate_raw();
-        PackedU256Target::from_array(create_array(|i| U32Target(raw[i])))
+        UInt256Target::new_from_target_limbs(&raw).expect("invalid length of slice inputs")
     }
 
     pub fn register(
@@ -352,8 +358,8 @@ impl<'a> BlockPublicInputs<'a, Target> {
         user_address: &PackedAddressTarget,
         mapping_slot: Target,
         mapping_slot_length: Target,
-        results: PackedU256Target,
-        rewards_rate: PackedU256Target,
+        results: UInt256Target,
+        rewards_rate: UInt256Target,
     ) {
         b.register_public_input(block_number);
         b.register_public_input(range);
@@ -362,8 +368,8 @@ impl<'a> BlockPublicInputs<'a, Target> {
         user_address.register_as_public_input(b);
         b.register_public_input(mapping_slot);
         b.register_public_input(mapping_slot_length);
-        results.register_as_public_input(b);
-        rewards_rate.register_as_public_input(b);
+        b.register_public_input_u256(&results);
+        b.register_public_input_u256(&rewards_rate);
     }
 }
 
@@ -424,6 +430,14 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
     pub(crate) fn mapping_slot_length(&self) -> GoldilocksField {
         self.storage_slot_length_raw()[0]
     }
+
+    pub(crate) fn rewards_rate(&self) -> U256 {
+        convert_u32_fields_to_u256(&self.rewards_rate_raw())
+    }
+
+    pub(crate) fn query_results(&self) -> U256 {
+        convert_u32_fields_to_u256(&self.query_results_raw())
+    }
 }
 
 #[cfg(test)]
@@ -439,7 +453,9 @@ mod tests {
     use recursion_framework::framework_testing::TestingRecursiveCircuits;
     use serial_test::serial;
 
+    use crate::api::ProofWithVK;
     use crate::query_erc20::{
+        block::{BlockPublicInputs, NUM_IO},
         state::{tests::generate_inputs_for_state_circuit, Parameters as StateParams},
         storage::public_inputs::PublicInputs as StorageInputs,
     };
@@ -489,6 +505,15 @@ mod tests {
             .generate_proof(&block_circuit_params.get_block_circuit_set(), right_leaf_io)
             .unwrap();
 
+        let [left_leaf_pi, right_leaf_pi] = [&left_leaf_proof, &right_leaf_proof].map(|proof| {
+            ProofWithVK::deserialize(&proof)
+                .unwrap()
+                .proof
+                .public_inputs
+        });
+        let [left_leaf_pi, right_leaf_pi] =
+            [&left_leaf_pi, &right_leaf_pi].map(|pi| BlockPublicInputs::from(&pi[..NUM_IO]));
+
         println!("leaf proofs built");
 
         let full_node_proof = block_circuit_params
@@ -498,6 +523,18 @@ mod tests {
             .unwrap();
 
         block_circuit_params.verify_proof(&full_node_proof).unwrap();
+
+        let full_node_pi = ProofWithVK::deserialize(&full_node_proof)
+            .unwrap()
+            .proof
+            .public_inputs;
+        let full_node_pi = BlockPublicInputs::from(&full_node_pi[..NUM_IO]);
+
+        // Check if full_node_reward == left_leaf_reward + right_leaf_reward.
+        assert_eq!(
+            full_node_pi.query_results(),
+            left_leaf_pi.query_results() + right_leaf_pi.query_results()
+        );
 
         println!("full node proof built");
 
@@ -523,5 +560,17 @@ mod tests {
         block_circuit_params
             .verify_proof(&partial_node_proof)
             .unwrap();
+
+        let partial_node_pi = ProofWithVK::deserialize(&partial_node_proof)
+            .unwrap()
+            .proof
+            .public_inputs;
+        let partial_node_pi = BlockPublicInputs::from(&partial_node_pi[..NUM_IO]);
+
+        // Check if partial_node_reward == full_node_reward.
+        assert_eq!(
+            partial_node_pi.query_results(),
+            full_node_pi.query_results()
+        );
     }
 }
