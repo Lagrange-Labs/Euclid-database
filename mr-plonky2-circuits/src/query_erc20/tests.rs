@@ -132,9 +132,9 @@ const EMPTY_NFT_ID: [u8; MAPPING_KEY_LEN] = [0u8; MAPPING_KEY_LEN];
 #[test]
 fn test_query_erc20_main_api() {
     const L: usize = 5;
-    const SLOT_LENGTH: u32 = 9;
+    const SLOT_LENGTH: u8 = 9;
     const MAX_DEPTH: usize = 12;
-    const MAPPING_SLOT: u32 = 48372;
+    const MAPPING_SLOT: u8 = 48;
     const BLOCK_NUMBER: u32 = 123456;
     let smart_contract_address = Address::random();
     let user_address = Address::random();

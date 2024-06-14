@@ -469,8 +469,8 @@ mod tests {
     fn test_query_erc20_block_circuit_api() {
         const NUM_STORAGE_INPUTS: usize = StorageInputs::<Target>::TOTAL_LEN;
         const BLOCK_NUMBER: u32 = 123456;
-        const LENGTH_SLOT: u32 = 42;
-        const MAPPING_SLOT: u32 = 24;
+        const LENGTH_SLOT: u8 = 42;
+        const MAPPING_SLOT: u8 = 24;
         let smart_contract_address = Address::random();
         let user_address = Address::random();
         let testing_framework = TestingRecursiveCircuits::<F, C, D, NUM_STORAGE_INPUTS>::default();

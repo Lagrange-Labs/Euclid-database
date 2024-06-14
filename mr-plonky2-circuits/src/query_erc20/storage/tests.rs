@@ -6,7 +6,7 @@ use super::{
     public_inputs::PublicInputs,
     CircuitInput, Parameters,
 };
-use crate::storage::lpn::leaf_hash_for_mapping;
+use crate::{api::lpn_storage::intermediate_node_hash, storage::lpn::leaf_hash_for_mapping};
 use crate::{
     api::ProofWithVK,
     utils::{convert_u8_slice_to_u32_fields, ToFields},
@@ -183,12 +183,10 @@ fn test_query_erc20_storage_inner_node_circuit() {
     let proof = run_circuit::<_, D, C, _>(test_circuit);
     let [pi, child_pi] = [&proof.public_inputs, child_pi_slice]
         .map(|pi| PublicInputs::<GoldilocksField>::from_slice(pi));
-    let inputs: Vec<_> = unproved_hash
-        .elements
-        .into_iter()
-        .chain(child_pi.root_hash().elements)
-        .collect();
-    let exp_c = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(&inputs);
+    let exp_c = HashOut::from_bytes(&intermediate_node_hash(
+        &unproved_hash.to_bytes().try_into().unwrap(),
+        &child_pi.root_hash().to_bytes().try_into().unwrap(),
+    ));
     assert_eq!(pi.root_hash(), exp_c);
     assert_eq!(pi.query_user_address(), child_pi.query_user_address());
     assert_eq!(pi.query_results(), child_pi.query_results());
@@ -205,13 +203,10 @@ fn test_query_erc20_storage_inner_node_circuit() {
     let proof = run_circuit::<_, D, C, _>(test_circuit);
     let [pi, child_pi] = [&proof.public_inputs, child_pi_slice]
         .map(|pi| PublicInputs::<GoldilocksField>::from_slice(pi));
-    let inputs: Vec<_> = child_pi
-        .root_hash()
-        .elements
-        .into_iter()
-        .chain(unproved_hash.elements)
-        .collect();
-    let exp_c = hash_n_to_hash_no_pad::<F, PoseidonPermutation<_>>(&inputs);
+    let exp_c = HashOut::from_bytes(&intermediate_node_hash(
+        &child_pi.root_hash().to_bytes().try_into().unwrap(),
+        &unproved_hash.to_bytes().try_into().unwrap(),
+    ));
     assert_eq!(pi.root_hash(), exp_c);
     assert_eq!(pi.query_user_address(), child_pi.query_user_address());
     assert_eq!(pi.query_results(), child_pi.query_results());

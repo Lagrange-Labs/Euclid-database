@@ -230,19 +230,25 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
         pw.set_target(wires.length_slot, self.length_slot);
         pw.set_target(wires.block_number, self.block_number);
 
+        // make sure we always assign all the potential values
+        // the depth is handled in the "self.depth" assignement above.
+        let mut siblings = self.siblings.clone();
+        siblings.resize(MAX_DEPTH, self.siblings.last().cloned().unwrap());
+        let mut positions = self.positions.clone();
+        positions.resize(MAX_DEPTH, false);
         wires
             .siblings
             .siblings
             .iter()
             .flat_map(|s| s.elements.iter())
-            .zip(self.siblings.iter().flat_map(|s| s.elements.iter()))
+            .zip(siblings.iter().flat_map(|s| s.elements.iter()))
             .for_each(|(&w, &v)| pw.set_target(w, v));
 
         wires
             .positions
             .iter()
             .map(|p| p.target)
-            .zip(self.positions.iter())
+            .zip(positions.iter())
             .for_each(|(w, &v)| pw.set_target(w, F::from_bool(v)));
 
         wires
