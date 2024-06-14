@@ -1,12 +1,11 @@
 mod api;
 mod block;
-mod revelation;
+pub(crate) mod revelation;
 mod state;
 mod storage;
 #[cfg(test)]
 mod tests;
 
 pub use api::{
-    BlockCircuitInput, CircuitInput, PublicParameters, RevelationRecursiveInput, StateCircuitInput,
-    StorageCircuitInput,
+    BlockCircuitInput, CircuitInput, PublicParameters, StateCircuitInput, StorageCircuitInput,
 };

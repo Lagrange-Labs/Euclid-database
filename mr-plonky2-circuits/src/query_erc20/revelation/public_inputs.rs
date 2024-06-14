@@ -15,7 +15,7 @@ use crate::{keccak::OutputHash, types::PackedAddressTarget, utils::convert_u32_f
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
-enum Inputs {
+enum Inputs<const L: usize> {
     BlockNumber,
     Range,
     MinBlockNumber,
@@ -24,12 +24,14 @@ enum Inputs {
     UserAddress,
     MappingSlot,
     MappingSlotLength,
+    // Padded L items to make it uniform with the query2 revelation public inputs
+    PaddedL,
     BlockHeader,
     RewardsRate,
     QueryResult,
 }
-impl Inputs {
-    const SIZES: [usize; 11] = [
+impl<const L: usize> Inputs<L> {
+    const SIZES: [usize; 12] = [
         // Block number
         1,
         // Range
@@ -46,6 +48,8 @@ impl Inputs {
         1,
         // Mapping slot length
         1,
+        // Padded L
+        L,
         // Block Header
         OutputHash::LEN,
         // result - uint256
@@ -66,6 +70,7 @@ impl Inputs {
             + Self::SIZES[8]
             + Self::SIZES[9]
             + Self::SIZES[10]
+            + Self::SIZES[11]
     }
 
     fn range(&self) -> std::ops::Range<usize> {
@@ -80,57 +85,57 @@ impl Inputs {
 }
 
 #[derive(Clone)]
-pub struct RevelationPublicInputs<'input, T: Clone> {
+pub struct RevelationPublicInputs<'input, T: Clone, const L: usize> {
     pub inputs: &'input [T],
 }
 
-impl<'a, T: Clone + Copy> From<&'a [T]> for RevelationPublicInputs<'a, T> {
+impl<'a, T: Clone + Copy, const L: usize> From<&'a [T]> for RevelationPublicInputs<'a, T, L> {
     fn from(inputs: &'a [T]) -> Self {
         assert_eq!(inputs.len(), Self::total_len());
         Self { inputs }
     }
 }
 
-impl<'a, T: Clone + Copy> RevelationPublicInputs<'a, T> {
+impl<'a, T: Clone + Copy, const L: usize> RevelationPublicInputs<'a, T, L> {
     fn block_number_raw(&self) -> &[T] {
-        &self.inputs[Inputs::BlockNumber.range()]
+        &self.inputs[Inputs::<L>::BlockNumber.range()]
     }
     fn range_raw(&self) -> &[T] {
-        &self.inputs[Inputs::Range.range()]
+        &self.inputs[Inputs::<L>::Range.range()]
     }
     fn min_block_number_raw(&self) -> &[T] {
-        &self.inputs[Inputs::MinBlockNumber.range()]
+        &self.inputs[Inputs::<L>::MinBlockNumber.range()]
     }
     fn max_block_number_raw(&self) -> &[T] {
-        &self.inputs[Inputs::MaxBlockNumber.range()]
+        &self.inputs[Inputs::<L>::MaxBlockNumber.range()]
     }
     fn smart_contract_address_raw(&self) -> &[T] {
-        &self.inputs[Inputs::SmartContractAddress.range()]
+        &self.inputs[Inputs::<L>::SmartContractAddress.range()]
     }
     fn user_address_raw(&self) -> &[T] {
-        &self.inputs[Inputs::UserAddress.range()]
+        &self.inputs[Inputs::<L>::UserAddress.range()]
     }
     fn mapping_slot_raw(&self) -> &[T] {
-        &self.inputs[Inputs::MappingSlot.range()]
+        &self.inputs[Inputs::<L>::MappingSlot.range()]
     }
     fn mapping_slot_length_raw(&self) -> &[T] {
-        &self.inputs[Inputs::MappingSlotLength.range()]
+        &self.inputs[Inputs::<L>::MappingSlotLength.range()]
     }
     fn block_header_raw(&self) -> &[T] {
-        &self.inputs[Inputs::BlockHeader.range()]
+        &self.inputs[Inputs::<L>::BlockHeader.range()]
     }
     fn query_results_raw(&self) -> &[T] {
-        &self.inputs[Inputs::QueryResult.range()]
+        &self.inputs[Inputs::<L>::QueryResult.range()]
     }
     fn query_rewards_rate_raw(&self) -> &[T] {
-        &self.inputs[Inputs::RewardsRate.range()]
+        &self.inputs[Inputs::<L>::RewardsRate.range()]
     }
     pub const fn total_len() -> usize {
-        Inputs::total_len()
+        Inputs::<L>::total_len()
     }
 }
 
-impl<'a> RevelationPublicInputs<'a, Target> {
+impl<'a, const L: usize> RevelationPublicInputs<'a, Target, L> {
     pub fn register(
         b: &mut CircuitBuilder<GoldilocksField, 2>,
         query_block_number: Target,
@@ -155,6 +160,9 @@ impl<'a> RevelationPublicInputs<'a, Target> {
         query_user_address.register_as_public_input(b);
         b.register_public_input(query_mapping_slot);
         b.register_public_input(mapping_slot_length);
+        // Register the L padded items.
+        let zero = b.zero();
+        b.register_public_inputs(&[zero; L]);
         b.register_public_inputs(&lpn_latest_block.to_targets().arr);
         b.register_public_input_u256(&rewards_rate);
         b.register_public_input_u256(&query_result);
@@ -217,7 +225,7 @@ impl<'a> RevelationPublicInputs<'a, Target> {
     }
 }
 
-impl<'a> RevelationPublicInputs<'a, GoldilocksField> {
+impl<'a, const L: usize> RevelationPublicInputs<'a, GoldilocksField, L> {
     pub(crate) fn block_number(&self) -> GoldilocksField {
         self.block_number_raw()[0]
     }
@@ -260,5 +268,22 @@ impl<'a> RevelationPublicInputs<'a, GoldilocksField> {
 
     pub(crate) fn block_header(&self) -> &[GoldilocksField] {
         self.block_header_raw()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RevelationPublicInputs as QueryERC20PI;
+    use crate::query2::revelation::RevelationPublicInputs as Query2PI;
+    use plonky2::iop::target::Target;
+
+    #[test]
+    fn test_same_pi_len_for_query2_and_query2_erc20() {
+        const L: usize = 5;
+
+        assert_eq!(
+            Query2PI::<Target, L>::total_len(),
+            QueryERC20PI::<Target, L>::total_len()
+        );
     }
 }
