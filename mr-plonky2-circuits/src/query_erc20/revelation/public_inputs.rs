@@ -2,6 +2,7 @@ use std::array::from_fn as create_array;
 
 use ethers::prelude::U256;
 use mrp2_utils::{
+    types::PACKED_U256_LEN,
     u256::{CircuitBuilderU256, UInt256Target},
     utils::convert_u32_fields_to_u256,
 };
@@ -53,9 +54,9 @@ impl<const L: usize> Inputs<L> {
         // Block Header
         OutputHash::LEN,
         // result - uint256
-        8,
+        PACKED_U256_LEN,
         // reward rate - uint256
-        8,
+        PACKED_U256_LEN,
     ];
 
     const fn total_len() -> usize {

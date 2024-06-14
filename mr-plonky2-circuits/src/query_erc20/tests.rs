@@ -198,7 +198,7 @@ fn test_query_erc20_main_api() {
     );
     let db_proof = BlockDBPublicInputs::<F>::from(block_data.as_slice());
 
-    let query_min_block_number = root_proof.block_number() - root_proof.range();
+    let query_min_block_number = root_proof.block_number() - root_proof.range() + F::ONE;
     let query_max_block_number = root_proof.block_number();
 
     let revelation_circuit = RevelationCircuit {

@@ -56,9 +56,8 @@ impl FullNodeCircuit {
         b.connect(left_max, right_min);
 
         let root = b.hash_n_to_hash_no_pad::<PoseidonHash>(Vec::from(to_hash.arr));
-        let new_range_min_bound = b.sub(inputs[0].block_number(), inputs[0].range());
         let new_upper_block = inputs[1].block_number();
-        let new_range_length = b.sub(new_upper_block, new_range_min_bound);
+        let new_range_length = b.add(inputs[0].range(), inputs[1].range());
         let (new_result, overflow) =
             b.add_u256(&inputs[0].query_results(), &inputs[1].query_results());
         // ensure the prover is not trying to obtain invalid results by overflowing the mul
