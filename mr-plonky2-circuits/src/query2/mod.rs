@@ -5,7 +5,7 @@ use crate::{array::Array, types::PACKED_ADDRESS_LEN as PACKED_SC_ADDRESS_LEN};
 
 pub mod api;
 pub mod block;
-pub(crate) mod revelation;
+pub mod revelation;
 pub mod state;
 pub mod storage;
 

@@ -19,7 +19,7 @@ use mr_plonky2_circuits::{
     query2::{
         block::BlockPublicInputs,
         block::NUM_IO as QUERY2_BLOCK_NUM_IO,
-        revelation::{Parameters, RevelationRecursiveInput},
+        revelation::{circuit::RevelationRecursiveInput, num_io, Parameters, RevelationInput},
         CircuitInput, PublicParameters,
     },
 };
@@ -115,6 +115,11 @@ fn plonky2_build_and_prove(asset_dir: &str, query: &Query) -> (CircuitData<F, C,
     let query2_testing_framework =
         TestingRecursiveCircuits::<F, C, D, QUERY2_BLOCK_NUM_IO>::default();
     let query2_block_circuit_set = query2_testing_framework.get_recursive_circuit_set();
+
+    // Generate a fake query circuits verification key.
+    let queries_testing_framework =
+        TestingRecursiveCircuits::<F, C, D, { num_io::<L>() }>::default();
+    let queries_circuit_set = queries_testing_framework.get_recursive_circuit_set();
 
     // Generate a fake block verification key.
     let block_db_testing_framework =
@@ -218,17 +223,23 @@ fn plonky2_build_and_prove(asset_dir: &str, query: &Query) -> (CircuitData<F, C,
     let block_db_buff = serialize_proof(block_db_proof).unwrap();
 
     // Create the revelation input.
-    let revelation_inputs = RevelationRecursiveInput::<L>::new(
-        mapping_keys.into_iter().map(|x| x.to_vec()).collect(),
-        query_min_number.to_canonical_u64() as usize,
-        query_max_number.to_canonical_u64() as usize,
-        q2_proof_buff,
-        block_db_buff,
+    let revelation_inputs = RevelationRecursiveInput::new(
+        RevelationInput::new(
+            mapping_keys.into_iter().map(|x| x.to_vec()).collect(),
+            query_min_number.to_canonical_u64() as usize,
+            query_max_number.to_canonical_u64() as usize,
+            q2_proof_buff,
+            block_db_buff,
+        )
+        .unwrap(),
+        query2_block_circuit_set.clone(),
     )
     .unwrap();
 
     // Generate the proof.
-    let proof = params.generate_proof(revelation_inputs).unwrap();
+    let proof = params
+        .generate_proof(queries_circuit_set, revelation_inputs)
+        .unwrap();
 
     // Save the public inputs to a file for debugging.
     save_plonky2_proof_pis(asset_dir, &deserialize_proof(&proof).unwrap());

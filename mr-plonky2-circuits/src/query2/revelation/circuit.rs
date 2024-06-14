@@ -222,7 +222,7 @@ pub struct RevelationRecursiveInput<const L: usize> {
 }
 
 impl<const L: usize> RevelationRecursiveInput<L> {
-    pub(crate) fn new(
+    pub fn new(
         inputs: RevelationInput<L>,
         query_block_circuit_set: RecursiveCircuits<F, C, D>,
     ) -> anyhow::Result<RevelationRecursiveInput<L>> {
