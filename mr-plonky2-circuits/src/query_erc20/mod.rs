@@ -1,9 +1,10 @@
 mod api;
 mod block;
-mod revelation;
+pub(crate) mod revelation;
 mod state;
 mod storage;
 #[cfg(test)]
 mod tests;
 
-pub use api::{CircuitInput, PublicParameters};
+pub use api::CircuitInput;
+pub(crate) use api::PublicParameters;
