@@ -2048,7 +2048,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
- "serialization",
  "sha3",
 ]
 
@@ -2664,7 +2663,6 @@ dependencies = [
  "serde_arrays",
  "serde_json",
  "serial_test",
- "serialization",
  "sha3",
  "tokio",
 ]
@@ -2700,14 +2698,13 @@ dependencies = [
  "plonky2_crypto",
  "plonky2_ecgfp5",
  "rand",
- "recursion_framework",
  "rlp",
  "rmp-serde",
+ "rstest",
  "serde",
  "serde_arrays",
  "serde_json",
  "serial_test",
- "serialization",
  "sha3",
  "tokio",
 ]
@@ -3540,6 +3537,7 @@ dependencies = [
  "bincode",
  "env_logger 0.11.3",
  "log",
+ "mrp2_utils",
  "plonky2",
  "plonky2_crypto",
  "plonky2_ecgfp5",
@@ -3547,7 +3545,6 @@ dependencies = [
  "rstest",
  "serde",
  "serial_test",
- "serialization",
 ]
 
 [[package]]
@@ -4223,23 +4220,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.65",
-]
-
-[[package]]
-name = "serialization"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bincode",
- "env_logger 0.11.3",
- "log",
- "plonky2",
- "plonky2_crypto",
- "plonky2_ecgfp5",
- "plonky2_monolith",
- "rstest",
- "serde",
- "serial_test",
 ]
 
 [[package]]

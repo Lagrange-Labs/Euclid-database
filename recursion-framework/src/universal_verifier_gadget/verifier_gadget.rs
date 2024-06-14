@@ -13,7 +13,9 @@ use plonky2::{
 };
 use serde::{Deserialize, Serialize};
 
-use serialization::{circuit_data_serialization::SerializableRichField, deserialize, serialize};
+use mrp2_utils::serialization::{
+    circuit_data_serialization::SerializableRichField, deserialize, serialize,
+};
 
 use super::{
     build_data_for_universal_verifier,

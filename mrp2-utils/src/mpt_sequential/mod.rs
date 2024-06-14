@@ -1,3 +1,6 @@
+use crate::serialization::{
+    deserialize_array, deserialize_long_array, serialize_array, serialize_long_array,
+};
 use crate::{
     array::{Array, Vector, VectorWire},
     keccak::{
@@ -23,10 +26,6 @@ use plonky2::{
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use serde::{Deserialize, Serialize};
-use serialization::deserialize_array;
-use serialization::deserialize_long_array;
-use serialization::serialize_array;
-use serialization::serialize_long_array;
 use utils::bytes_to_nibbles;
 
 mod key;
@@ -395,9 +394,8 @@ where
 mod test {
     use std::array::from_fn as create_array;
     use std::str::FromStr;
-    use std::sync::Arc;
 
-    use eth_trie::{EthTrie, MemoryDB, Nibbles, Trie};
+    use eth_trie::{Nibbles, Trie};
     use ethers::providers::{Http, Provider};
     use ethers::types::{Address, EIP1186ProofResponse};
     use mrp2_test_utils::{
@@ -421,7 +419,7 @@ mod test {
         },
     };
     use plonky2_crypto::u32::arithmetic_u32::U32Target;
-    use rand::{thread_rng, Rng, RngCore};
+    use rand::{thread_rng, RngCore};
 
     use crate::eth::ProofQuery;
     use crate::keccak::{HASH_LEN, PACKED_HASH_LEN};

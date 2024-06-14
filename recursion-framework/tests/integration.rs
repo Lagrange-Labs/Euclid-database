@@ -1,5 +1,8 @@
 use std::{array, iter::once};
 
+use mrp2_utils::serialization::{
+    circuit_data_serialization::SerializableRichField, deserialize_array, serialize_array,
+};
 use plonky2::field::types::{Field, Sample};
 use plonky2::{
     field::types::PrimeField64,
@@ -23,8 +26,6 @@ use recursion_framework::{
     },
     framework_testing::{new_universal_circuit_builder_for_testing, TestingRecursiveCircuits},
 };
-use serialization::circuit_data_serialization::SerializableRichField;
-use serialization::{deserialize_array, serialize_array};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

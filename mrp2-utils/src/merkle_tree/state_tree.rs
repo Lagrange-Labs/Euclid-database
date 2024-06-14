@@ -2,6 +2,7 @@
 
 use std::array::from_fn as create_array;
 
+use crate::serialization::{deserialize, deserialize_array, serialize, serialize_array};
 use plonky2::{
     field::extension::Extendable,
     hash::{
@@ -16,10 +17,6 @@ use plonky2::{
     plonk::circuit_builder::CircuitBuilder,
 };
 use serde::{Deserialize, Serialize};
-use serialization::{
-    deserialize, deserialize_array, deserialize_long_array, serialize, serialize_array,
-    serialize_long_array,
-};
 
 use crate::poseidon::hash_maybe_swap;
 

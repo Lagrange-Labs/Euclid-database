@@ -5,6 +5,7 @@ use crate::{
         CircuitSet, CircuitSetDigest, CircuitSetTarget,
     },
 };
+use mrp2_utils::serialization::circuit_data_serialization::SerializableRichField;
 use plonky2::{
     field::extension::Extendable,
     hash::hash_types::{HashOut, RichField},
@@ -17,7 +18,6 @@ use plonky2::{
     },
 };
 use serde::{Deserialize, Serialize};
-use serialization::circuit_data_serialization::SerializableRichField;
 
 use anyhow::Result;
 
@@ -285,8 +285,9 @@ pub(crate) mod tests {
         tests::{LeafCircuitWires, RecursiveCircuitWires},
         CircuitWithUniversalVerifierBuilder,
     };
-    use serialization::circuit_data_serialization::SerializableRichField;
-    use serialization::{deserialize, serialize};
+    use mrp2_utils::serialization::{
+        circuit_data_serialization::SerializableRichField, deserialize, serialize,
+    };
 
     use super::*;
 

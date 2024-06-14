@@ -11,7 +11,7 @@ plonky2_crypto.workspace = true
 plonky2_ecgfp5.workspace = true
 serde.workspace = true
 
-serialization = { path = "../serialization" }
+mrp2_utils = { path = "../mrp2-utils" }
 
 [dev-dependencies]
 bincode.workspace = true

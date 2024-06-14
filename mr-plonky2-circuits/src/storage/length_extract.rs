@@ -13,6 +13,9 @@ use crate::{
 };
 use anyhow::Result;
 use ethers::types::H160;
+use mrp2_utils::serialization::{
+    circuit_data_serialization::SerializableRichField, deserialize, serialize,
+};
 use plonky2::{
     field::extension::Extendable,
     hash::hash_types::RichField,
@@ -25,8 +28,6 @@ use plonky2::{
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use serde::{Deserialize, Serialize};
-use serialization::circuit_data_serialization::SerializableRichField;
-use serialization::{deserialize, serialize};
 use std::array::{self};
 
 /// This is a wrapper around an array of targets set as public inputs of any

@@ -1,3 +1,6 @@
+use mrp2_utils::serialization::{
+    circuit_data_serialization::SerializableRichField, deserialize_array, serialize_array,
+};
 use plonky2::{
     hash::hash_types::HashOut,
     iop::{
@@ -12,9 +15,6 @@ use plonky2::{
     },
 };
 use serde::{Deserialize, Serialize};
-use serialization::{
-    circuit_data_serialization::SerializableRichField, deserialize_array, serialize_array,
-};
 
 use crate::{
     circuit_builder::{

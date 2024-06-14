@@ -1,3 +1,4 @@
+use crate::serialization::{deserialize_long_array, serialize_long_array};
 use anyhow::{anyhow, Result};
 use plonky2::{
     field::{extension::Extendable, types::Field},
@@ -10,7 +11,6 @@ use plonky2::{
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use serde::{Deserialize, Serialize};
-use serialization::{deserialize_long_array, serialize_long_array};
 use std::{array::from_fn as create_array, fmt::Debug, ops::Index};
 
 use crate::utils::{less_than, less_than_or_equal_to};

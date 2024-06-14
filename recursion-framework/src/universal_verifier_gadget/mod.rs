@@ -9,7 +9,7 @@ use plonky2::{
     },
 };
 
-use serialization::circuit_data_serialization::SerializableRichField;
+use mrp2_utils::serialization::circuit_data_serialization::SerializableRichField;
 
 use self::wrap_circuit::WrapCircuit;
 

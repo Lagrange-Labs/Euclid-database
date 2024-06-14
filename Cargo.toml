@@ -6,7 +6,6 @@ members = [
     "mrp2-utils",
     "mrp2-test-utils",
     "recursion-framework", 
-    "serialization",
 ]
 resolver = "2"
 

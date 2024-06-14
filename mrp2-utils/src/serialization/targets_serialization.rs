@@ -152,9 +152,9 @@ impl FromBytes for HashOutTarget {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::circuit_data_serialization::tests::build_test_circuit;
-    use crate::{
-        deserialize, deserialize_array, deserialize_vec, serialize, serialize_array, serialize_vec,
+    use crate::serialization::{
+        circuit_data_serialization::tests::build_test_circuit, deserialize, deserialize_array,
+        deserialize_vec, serialize, serialize_array, serialize_vec,
     };
     use plonky2::{
         iop::target::Target,

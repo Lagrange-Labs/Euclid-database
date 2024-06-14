@@ -13,6 +13,7 @@ use crate::{
     utils::{convert_point_to_curve_target, convert_slice_to_curve_point},
 };
 use anyhow::Result;
+use mrp2_utils::serialization::{deserialize, serialize};
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     iop::{
@@ -31,7 +32,6 @@ use recursion_framework::framework::{
     RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
 };
 use serde::{Deserialize, Serialize};
-use serialization::{deserialize, serialize};
 use std::array;
 /// This is a wrapper around an array of targets set as public inputs of any
 /// proof generated in this module. They all share the same structure.

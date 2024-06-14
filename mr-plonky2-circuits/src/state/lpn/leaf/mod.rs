@@ -3,6 +3,7 @@
 
 use std::iter;
 
+use mrp2_utils::serialization::{deserialize, serialize};
 use plonky2::{
     field::extension::Extendable,
     hash::{hash_types::RichField, poseidon::PoseidonHash},
@@ -15,7 +16,6 @@ use plonky2::{
 };
 use recursion_framework::circuit_builder::CircuitLogicWires;
 use serde::{Deserialize, Serialize};
-use serialization::{deserialize, serialize};
 
 use crate::{
     api::verify_proof_fixed_circuit,

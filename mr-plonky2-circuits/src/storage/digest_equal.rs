@@ -18,6 +18,7 @@ use crate::{
 };
 use anyhow::Result;
 use ethers::types::H256;
+use mrp2_utils::serialization::{deserialize, serialize};
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::hash_types::{HashOutTarget, RichField, NUM_HASH_OUT_ELTS},
@@ -37,7 +38,6 @@ use recursion_framework::framework::{
     RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
 };
 use serde::{Deserialize, Serialize};
-use serialization::{deserialize, serialize};
 use std::array;
 
 /// This is a wrapper around an array of targets set as public inputs of any

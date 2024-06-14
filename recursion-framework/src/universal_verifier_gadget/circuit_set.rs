@@ -20,7 +20,7 @@ use plonky2::{
 };
 use serde::{Deserialize, Serialize};
 
-use serialization::{deserialize, deserialize_vec, serialize, serialize_vec};
+use mrp2_utils::serialization::{deserialize, deserialize_vec, serialize, serialize_vec};
 
 use super::CIRCUIT_SET_CAP_HEIGHT;
 use anyhow::{Error, Result};

@@ -6,6 +6,12 @@ use std::{
     usize,
 };
 
+use crate::{
+    serialization::{
+        circuit_data_serialization::SerializableRichField, FromBytes, SerializationError, ToBytes,
+    },
+    utils::convert_u8_to_u32_slice,
+};
 use anyhow::{ensure, Result};
 use ethers::types::U256;
 use itertools::Itertools;
@@ -24,17 +30,12 @@ use plonky2_crypto::u32::{
     witness::WitnessU32,
 };
 use serde::{Deserialize, Serialize};
-use serialization::{
-    circuit_data_serialization::SerializableRichField, FromBytes, SerializationError, ToBytes,
-};
-
-use crate::utils::convert_u8_to_u32_slice;
 
 /// Number of limbs employed to represent a 256-bit unsigned integer
 pub const NUM_LIMBS: usize = 8;
 
 /// Circuit representation of u256
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct UInt256Target([U32Target; NUM_LIMBS]);
 
 pub trait CircuitBuilderU256<F: SerializableRichField<D>, const D: usize> {
@@ -451,7 +452,7 @@ impl ToFields for U256 {
 }
 
 /// Generator employed to fill witness values needed for division of UInt256Targets
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct UInt256DivGenerator {
     dividend: UInt256Target,
     divisor: UInt256Target,
@@ -521,13 +522,21 @@ mod tests {
         field::types::Field,
         iop::witness::PartialWitness,
         plonk::{
-            circuit_builder::CircuitBuilder, config::PoseidonGoldilocksConfig,
+            circuit_builder::CircuitBuilder,
+            circuit_data::{CircuitConfig, CircuitData},
+            config::PoseidonGoldilocksConfig,
             proof::ProofWithPublicInputs,
         },
     };
     use rand::{thread_rng, Rng};
+    use serde::{Deserialize, Serialize};
 
-    use crate::{types::GFp, u256::NUM_LIMBS, utils::convert_u32_fields_to_u256};
+    use crate::{
+        serialization::{deserialize, serialize},
+        types::GFp,
+        u256::NUM_LIMBS,
+        utils::convert_u32_fields_to_u256,
+    };
 
     use super::{CircuitBuilderU256, UInt256Target, WitnessWriteU256};
 
@@ -988,5 +997,35 @@ mod tests {
         let circuit = TestIsZeroCircuit(U256::zero());
         let proof = run_circuit::<F, D, C, _>(circuit);
         assert_eq!(F::ONE, proof.public_inputs[0]);
+    }
+
+    #[test]
+    fn test_serialization_with_u256_div() {
+        let mut b = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
+        let wires = TestDivCircuit::build(&mut b);
+        let data = b.build();
+
+        // helper struct used to easily serialzie circut data for div circuit
+        #[derive(Serialize, Deserialize)]
+        struct TestDivParams {
+            #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
+            data: CircuitData<F, C, D>,
+        }
+
+        let params = TestDivParams { data };
+
+        // serialize and deserialize circuit data
+        let serialized_params = bincode::serialize(&params).unwrap();
+        let params: TestDivParams = bincode::deserialize(&serialized_params).unwrap();
+
+        // use deserialized parameters to generate a proof
+        let circuit = TestDivCircuit(TestOperationsCircuit {
+            left: U256::zero(),
+            right: U256::one(),
+        });
+        let mut pw = PartialWitness::new();
+        circuit.prove(&mut pw, &wires);
+        let proof = params.data.prove(pw).unwrap();
+        params.data.verify(proof).unwrap();
     }
 }

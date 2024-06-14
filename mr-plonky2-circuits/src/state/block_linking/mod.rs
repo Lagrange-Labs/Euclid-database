@@ -28,9 +28,9 @@ use plonky2::{
     },
 };
 
+use mrp2_utils::serialization::{deserialize, serialize};
 pub use public_inputs::BlockLinkingInputs;
 use serde::{Deserialize, Serialize};
-use serialization::{deserialize, serialize};
 
 use self::block::SEPOLIA_NUMBER_LEN;
 

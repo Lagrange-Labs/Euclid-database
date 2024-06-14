@@ -1,4 +1,7 @@
 use anyhow::Result;
+use mrp2_utils::serialization::{
+    circuit_data_serialization::SerializableRichField, deserialize, serialize,
+};
 use plonky2::plonk::{
     circuit_builder::CircuitBuilder,
     circuit_data::{CircuitConfig, VerifierCircuitData, VerifierOnlyCircuitData},
@@ -7,7 +10,6 @@ use plonky2::plonk::{
 };
 use recursion_framework::framework::RecursiveCircuits;
 use serde::{Deserialize, Serialize};
-use serialization::{circuit_data_serialization::SerializableRichField, deserialize, serialize};
 
 pub use crate::storage::{
     self,

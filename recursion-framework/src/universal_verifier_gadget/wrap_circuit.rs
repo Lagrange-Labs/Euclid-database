@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::universal_verifier_gadget::{
     circuit_set::check_circuit_digest_target, RECURSION_THRESHOLD,
 };
-use serialization::{
+use mrp2_utils::serialization::{
     circuit_data_serialization::SerializableRichField, deserialize_vec, serialize_vec,
 };
 
@@ -167,7 +167,7 @@ pub(crate) mod test {
         circuit_builder::{tests::LeafCircuitWires, CircuitLogicWires},
         framework::tests::check_panic,
     };
-    use serialization::circuit_data_serialization::SerializableRichField;
+    use mrp2_utils::serialization::circuit_data_serialization::SerializableRichField;
 
     use serial_test::serial;
 

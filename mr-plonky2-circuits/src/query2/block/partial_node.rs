@@ -1,3 +1,4 @@
+use mrp2_utils::serialization::{deserialize, serialize};
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::hash_types::{HashOut, HashOutTarget},
@@ -9,7 +10,6 @@ use plonky2::{
 };
 use recursion_framework::circuit_builder::CircuitLogicWires;
 use serde::{Deserialize, Serialize};
-use serialization::{deserialize, serialize};
 
 use crate::{api::ProofWithVK, poseidon::hash_maybe_swap};
 
