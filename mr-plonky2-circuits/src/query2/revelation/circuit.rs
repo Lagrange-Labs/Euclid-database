@@ -14,7 +14,10 @@ use crate::{
     utils::{greater_than_or_equal_to, less_than, less_than_or_equal_to},
 };
 use itertools::Itertools;
-use mrp2_utils::utils::keccak256;
+use mrp2_utils::{
+    serialization::{deserialize, serialize},
+    utils::keccak256,
+};
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::{hash_types::HashOutTarget, poseidon::PoseidonHash},
@@ -34,7 +37,6 @@ use recursion_framework::{
     framework::{
         RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
     },
-    serialization::{deserialize, serialize},
 };
 use serde::{Deserialize, Serialize};
 use std::array::from_fn as create_array;

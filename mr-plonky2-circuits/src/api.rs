@@ -1,4 +1,7 @@
 use anyhow::Result;
+use mrp2_utils::serialization::{
+    circuit_data_serialization::SerializableRichField, deserialize, serialize,
+};
 use plonky2::{
     hash::poseidon::PoseidonHash,
     iop::witness::PartialWitness,
@@ -9,11 +12,8 @@ use plonky2::{
         proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget},
     },
 };
-use recursion_framework::{
-    framework::{
-        RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
-    },
-    serialization::{circuit_data_serialization::SerializableRichField, deserialize, serialize},
+use recursion_framework::framework::{
+    RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
 };
 use serde::{Deserialize, Serialize};
 
