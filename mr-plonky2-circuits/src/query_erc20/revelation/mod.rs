@@ -229,7 +229,7 @@ mod test {
         // that's the purpose of the revelation circuit.
         let query_max_number = block_db_pi.block_number_data() - F::ONE;
         let query_range = F::from_canonical_usize(50);
-        let query_min_number = query_max_number - query_range;
+        let query_min_number = query_max_number - query_range + F::ONE;
         let query_root = HashOut {
             elements: block_db_pi.root_data().try_into().unwrap(),
         };
