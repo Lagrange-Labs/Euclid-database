@@ -14,6 +14,7 @@ use crate::{
     utils::{greater_than_or_equal_to, less_than, less_than_or_equal_to},
 };
 use itertools::Itertools;
+use mrp2_utils::utils::keccak256;
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::{hash_types::HashOutTarget, poseidon::PoseidonHash},
@@ -26,6 +27,7 @@ use plonky2::{
         proof::ProofWithPublicInputsTarget,
     },
 };
+use plonky2_crypto::hash::keccak256;
 use plonky2_ecgfp5::gadgets::curve::CircuitBuilderEcGFp5;
 use recursion_framework::{
     circuit_builder::CircuitLogicWires,
@@ -288,11 +290,8 @@ where
             RevelationCircuit::<L>::build::<BLOCK_DB_DEPTH>(builder, block_db_pi, query_block_pi);
 
         // register additional public input to identify the query circuits
-        let mut identifier = vec![0u8; 2];
-        identifier.extend_from_slice("QUERY2".as_bytes());
-        let identifier = builder.constant(F::from_canonical_u64(u64::from_be_bytes(
-            identifier.try_into().unwrap(),
-        )));
+        let identifier =
+            builder.constant(F::from_canonical_u8(keccak256("QueryNFT".as_bytes())[0]));
         builder.register_public_input(identifier);
 
         RevelationRecursiveWires {

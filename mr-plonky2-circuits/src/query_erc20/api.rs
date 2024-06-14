@@ -85,7 +85,10 @@ where
             CircuitInput::Revelation(inputs) => Ok((
                 self.revelation.generate_proof(
                     query_circuit_set,
-                    RevelationRecursiveInput::new(inputs, self.block.get_block_circuit_set().clone())?,
+                    RevelationRecursiveInput::new(
+                        inputs,
+                        self.block.get_block_circuit_set().clone(),
+                    )?,
                 )?,
                 true,
             )),

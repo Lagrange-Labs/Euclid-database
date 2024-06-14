@@ -306,21 +306,20 @@ where
     /// Generate a proof for `input` employing the circuits in query parameters `self`
     pub fn generate_proof(&self, input: QueryInput<L>) -> Result<Vec<u8>> {
         let (query_proof, is_revelation) = match input {
-                QueryInput::Query2(inputs) => self
-                    .query2_params
-                    .generate_proof(inputs, &self.query_circuit_set),
-                QueryInput::QueryErc(inputs) => self
-                    .query_erc_params
-                    .generate_proof(inputs, &self.query_circuit_set),
-            }?;
+            QueryInput::Query2(inputs) => self
+                .query2_params
+                .generate_proof(inputs, &self.query_circuit_set),
+            QueryInput::QueryErc(inputs) => self
+                .query_erc_params
+                .generate_proof(inputs, &self.query_circuit_set),
+        }?;
         if is_revelation {
             let query_proof = ProofWithVK::deserialize(&query_proof)?;
             self.wrap_circuit
-            .generate_proof(&self.query_circuit_set, &query_proof)
+                .generate_proof(&self.query_circuit_set, &query_proof)
         } else {
             Ok(query_proof)
         }
-        
     }
     /// Circuit data for the final query proof being returned by `generate_proof`
     pub fn final_proof_circuit_data(&self) -> &CircuitData<F, C, D> {

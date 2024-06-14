@@ -83,13 +83,16 @@ where
             CircuitInput::Revelation(inputs) => Ok((
                 self.revelation.generate_proof(
                     query_circuit_set,
-                    RevelationRecursiveInput::new(inputs, self.block.get_block_circuit_set().clone())?,
+                    RevelationRecursiveInput::new(
+                        inputs,
+                        self.block.get_block_circuit_set().clone(),
+                    )?,
                 )?,
                 true,
             )),
         }
     }
-    
+
     /// Circuit data for the final proof being generated
     pub fn final_proof_circuit_data(&self) -> &CircuitData<F, C, D> {
         self.revelation.circuit_data()

@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use mrp2_utils::utils::keccak256;
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::{hash_types::HashOutTarget, poseidon::PoseidonHash},
@@ -224,11 +225,8 @@ where
             RevelationCircuit::<L>::build::<BLOCK_DB_DEPTH>(builder, block_db_pi, query_block_pi);
 
         // register additional public input to identify the query circuits
-        let mut identifier = vec![0u8; 3];
-        identifier.extend_from_slice("ERC20".as_bytes());
-        let identifier = builder.constant(F::from_canonical_u64(u64::from_be_bytes(
-            identifier.try_into().unwrap(),
-        )));
+        let identifier =
+            builder.constant(F::from_canonical_u8(keccak256("QueryERC20".as_bytes())[0]));
         builder.register_public_input(identifier);
 
         RevelationRecursiveWires {
