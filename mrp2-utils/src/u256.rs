@@ -116,8 +116,13 @@ impl<F: SerializableRichField<D>, const D: usize> CircuitBuilderU256<F, D>
     }
 
     fn add_virtual_u256(&mut self) -> UInt256Target {
-        //ToDo: implement safe version
-        self.add_virtual_u256_unsafe()
+        //ToDo: make it more efficient by employing lookup-gates
+        let target = self.add_virtual_u256_unsafe();
+        // add range checks for each limb
+        target.0.iter().for_each(|t| {
+            self.range_check(t.0, 32);
+        });
+        target
     }
 
     fn register_public_input_u256(&mut self, target: &UInt256Target) {
@@ -522,7 +527,7 @@ mod tests {
     };
     use rand::{thread_rng, Rng};
 
-    use crate::{types::GFp, u256::NUM_LIMBS, utils::convert_u8_slice_to_u32_fields};
+    use crate::{types::GFp, u256::NUM_LIMBS, utils::convert_u32_fields_to_u256};
 
     use super::{CircuitBuilderU256, UInt256Target, WitnessWriteU256};
 
@@ -688,13 +693,10 @@ mod tests {
         proof: &ProofWithPublicInputs<F, C, D>,
         test_case: &str,
     ) {
-        let mut bytes = [0u8; 32];
-        result.to_little_endian(&mut bytes);
-        let limbs = convert_u8_slice_to_u32_fields::<F>(&bytes);
+        let proven_res = convert_u32_fields_to_u256(&proof.public_inputs[..NUM_LIMBS]);
         // check that result is the same as the one exposed by the proof
         assert_eq!(
-            limbs.as_slice(),
-            &proof.public_inputs[..NUM_LIMBS],
+            result, proven_res,
             "result not correct for test: {}",
             test_case
         );
@@ -839,21 +841,17 @@ mod tests {
                                 proof: &ProofWithPublicInputs<F, C, D>,
                                 test_case: &str| {
             // check that quotient is the same as the one exposed by the proof
-            let mut bytes = [0u8; 32];
-            quotient.to_little_endian(&mut bytes);
-            let quotient_limbs = convert_u8_slice_to_u32_fields::<F>(&bytes);
+            let proven_quotient = convert_u32_fields_to_u256(&proof.public_inputs[..NUM_LIMBS]);
             assert_eq!(
-                quotient_limbs.as_slice(),
-                &proof.public_inputs[..NUM_LIMBS],
+                quotient, proven_quotient,
                 "quotient not correct for test: {}",
                 test_case
             );
             // check that remainder is the same as the one exposed by the proof
-            remainder.to_little_endian(&mut bytes);
-            let remainder_limbs = convert_u8_slice_to_u32_fields::<F>(&bytes);
+            let proven_remainder =
+                convert_u32_fields_to_u256(&proof.public_inputs[NUM_LIMBS..2 * NUM_LIMBS]);
             assert_eq!(
-                remainder_limbs.as_slice(),
-                &proof.public_inputs[NUM_LIMBS..2 * NUM_LIMBS],
+                remainder, proven_remainder,
                 "remainder not correct for test: {}",
                 test_case
             );

@@ -1,9 +1,15 @@
 use super::{
     block,
-    revelation::{self, circuit::RevelationRecursiveInput, num_io},
+    revelation::{self, num_io},
     state::{self, CircuitInputsInternal},
     storage,
 };
+
+pub use super::block::CircuitInput as BlockCircuitInput;
+pub use super::revelation::RevelationRecursiveInput;
+pub use super::state::CircuitInput as StateCircuitInput;
+pub use super::storage::CircuitInput as StorageCircuitInput;
+
 use crate::api::{BlockDBCircuitInfo, C, D, F};
 use plonky2::{
     hash::poseidon::PoseidonHash,
@@ -28,7 +34,7 @@ pub enum CircuitInput<const L: usize> {
 
 #[derive(Serialize, Deserialize)]
 /// Parameters representing the circuits employed to prove query2
-pub(crate) struct PublicParameters<const BLOCK_DB_DEPTH: usize, const L: usize> {
+pub struct PublicParameters<const BLOCK_DB_DEPTH: usize, const L: usize> {
     storage: storage::Parameters,
     state: state::Parameters,
     block: block::Parameters,

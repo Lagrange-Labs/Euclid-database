@@ -6,5 +6,6 @@ mod storage;
 #[cfg(test)]
 mod tests;
 
-pub use api::CircuitInput;
-pub(crate) use api::PublicParameters;
+pub use api::{
+    BlockCircuitInput, CircuitInput, PublicParameters, StateCircuitInput, StorageCircuitInput,
+};

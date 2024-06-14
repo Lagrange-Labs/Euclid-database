@@ -1,9 +1,8 @@
-use crate::types::{PackedAddressTarget, PackedU256Target, PACKED_ADDRESS_LEN, PACKED_U256_LEN};
+use crate::types::{PackedAddressTarget, PACKED_ADDRESS_LEN, PACKED_U256_LEN};
 use crate::utils::convert_u32_fields_to_u8_vec;
 use ethers::prelude::{Address, U256};
 use mrp2_utils::u256::{CircuitBuilderU256, UInt256Target};
-use mrp2_utils::utils::convert_u8_slice_to_u32_fields;
-use plonky2::field::types::Field;
+use mrp2_utils::utils::convert_u32_fields_to_u256;
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::hash_types::{HashOut, HashOutTarget, NUM_HASH_OUT_ELTS},
@@ -120,15 +119,18 @@ impl<'a> PublicInputs<'a, GoldilocksField> {
         Address::from_slice(&convert_u32_fields_to_u8_vec(self.query_user_address_raw()))
     }
     pub fn query_results(&self) -> U256 {
-        U256::from_little_endian(&convert_u32_fields_to_u8_vec(self.query_results_raw()))
+        convert_u32_fields_to_u256(self.query_results_raw())
     }
     pub fn query_rewards_rate(&self) -> U256 {
-        U256::from_little_endian(&convert_u32_fields_to_u8_vec(self.query_rewards_rate_raw()))
+        convert_u32_fields_to_u256(self.query_rewards_rate_raw())
     }
 }
 
 #[cfg(test)]
 mod test {
+    use mrp2_utils::utils::convert_u8_slice_to_u32_fields;
+    use plonky2::field::types::Field;
+
     use super::*;
     impl<'a> PublicInputs<'a, GoldilocksField> {
         /// Writes the parts of the public inputs into the provided target array.

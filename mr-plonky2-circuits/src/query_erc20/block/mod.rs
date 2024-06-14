@@ -11,8 +11,9 @@ use anyhow::Result;
 use ethers::prelude::U256;
 use itertools::Itertools;
 use mrp2_utils::{
-    types::{PackedU256Target, PACKED_U256_LEN},
+    types::PACKED_U256_LEN,
     u256::{CircuitBuilderU256, UInt256Target},
+    utils::convert_u32_fields_to_u256,
 };
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
@@ -431,11 +432,11 @@ impl<'a> BlockPublicInputs<'a, GoldilocksField> {
     }
 
     pub(crate) fn rewards_rate(&self) -> U256 {
-        U256::from_little_endian(&convert_u32_fields_to_u8_vec(&self.rewards_rate_raw()))
+        convert_u32_fields_to_u256(&self.rewards_rate_raw())
     }
 
     pub(crate) fn query_results(&self) -> U256 {
-        U256::from_little_endian(&convert_u32_fields_to_u8_vec(&self.query_results_raw()))
+        convert_u32_fields_to_u256(&self.query_results_raw())
     }
 }
 

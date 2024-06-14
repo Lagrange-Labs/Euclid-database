@@ -1,7 +1,5 @@
 use anyhow::Result;
-use circuit::{
-    revelation_num_io, BuilderParams, RevelationRecursiveInput, RevelationRecursiveWires,
-};
+use circuit::{revelation_num_io, BuilderParams, RevelationRecursiveWires};
 use ethers::middleware::builder;
 use recursion_framework::{
     circuit_builder::{CircuitWithUniversalVerifier, CircuitWithUniversalVerifierBuilder},
@@ -41,8 +39,8 @@ use crate::{
     utils::Packer,
 };
 
-pub use self::circuit::RevelationCircuit;
 use self::circuit::RevelationWires;
+pub use self::circuit::{RevelationCircuit, RevelationRecursiveInput};
 
 pub mod circuit;
 mod public_inputs;
