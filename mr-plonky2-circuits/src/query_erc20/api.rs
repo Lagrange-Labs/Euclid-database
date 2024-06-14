@@ -4,11 +4,10 @@ use super::{
     storage,
 };
 
-pub use super::storage::CircuitInput as StorageCircuitInput;
-pub use super::state::CircuitInput as StateCircuitInput;
 pub use super::block::CircuitInput as BlockCircuitInput;
 pub use super::revelation::RevelationRecursiveInput;
-
+pub use super::state::CircuitInput as StateCircuitInput;
+pub use super::storage::CircuitInput as StorageCircuitInput;
 
 use crate::api::{BlockDBCircuitInfo, C, D, F};
 use serde::{Deserialize, Serialize};

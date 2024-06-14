@@ -6,4 +6,7 @@ mod storage;
 #[cfg(test)]
 mod tests;
 
-pub use api::{CircuitInput, PublicParameters, StorageCircuitInput, StateCircuitInput, BlockCircuitInput, RevelationRecursiveInput};
+pub use api::{
+    BlockCircuitInput, CircuitInput, PublicParameters, RevelationRecursiveInput, StateCircuitInput,
+    StorageCircuitInput,
+};
