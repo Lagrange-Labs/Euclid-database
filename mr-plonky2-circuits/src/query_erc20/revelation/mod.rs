@@ -1,45 +1,30 @@
 use anyhow::Result;
 use circuit::{revelation_num_io, BuilderParams, RevelationRecursiveWires};
-use ethers::middleware::builder;
 use recursion_framework::{
     circuit_builder::{CircuitWithUniversalVerifier, CircuitWithUniversalVerifierBuilder},
-    framework::{
-        RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
-    },
-    serialization::{deserialize, serialize},
+    framework::RecursiveCircuits,
 };
 use serde::{Deserialize, Serialize};
-use std::{array::from_fn as create_array, collections::BTreeMap};
 
 use plonky2::{
     hash::poseidon::PoseidonHash,
-    iop::{
-        target::Target,
-        witness::{PartialWitness, WitnessWrite},
-    },
+    iop::target::Target,
     plonk::{
-        circuit_builder::CircuitBuilder,
         circuit_data::{CircuitData, VerifierCircuitData, VerifierOnlyCircuitData},
         config::Hasher,
-        proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget},
+        proof::ProofWithPublicInputs,
     },
 };
 
 use crate::{
     api::{
-        default_config, deserialize_proof, serialize_proof, ProofWithVK, C, D, F,
+        default_config, deserialize_proof, ProofWithVK, C, D, F,
         QUERY_CIRCUIT_SET_SIZE,
     },
-    block::{
-        Parameters as BlockDbParameters, PublicInputs as BlockDbPublicInputs, NUM_IVC_PUBLIC_INPUTS,
-    },
-    eth::left_pad32,
+    block::NUM_IVC_PUBLIC_INPUTS,
     query_erc20::block,
-    types::PACKED_MAPPING_KEY_LEN,
-    utils::Packer,
 };
 
-use self::circuit::RevelationWires;
 pub use self::circuit::{RevelationCircuit, RevelationRecursiveInput};
 
 pub mod circuit;
@@ -158,10 +143,8 @@ mod test {
     use crate::{
         api::{serialize_proof, ProofWithVK},
         block::empty_merkle_root,
-        eth::left_pad,
         keccak::PACKED_HASH_LEN,
         query_erc20::revelation::{RevelationRecursiveInput, QUERY_ERC_BLOCK_NUM_IO},
-        types::MAPPING_KEY_LEN,
         utils::{Packer, ToFields},
     };
     use anyhow::Result;
@@ -181,10 +164,10 @@ mod test {
 
     use super::*;
 
+    use crate::block::PublicInputs as BlockDbPublicInputs;
+
     use crate::{
         api::{C, D, F},
-        eth::left_pad32,
-        group_hashing,
         query_erc20::block::BlockPublicInputs,
     };
 

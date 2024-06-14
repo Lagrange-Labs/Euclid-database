@@ -72,10 +72,14 @@ impl LeafCircuit {
 
         // V = R * value / totalSupply
         // do multiplication first then division
-        // We can't handle overflow in v0 yet so we ignore it
         let zero_u256 = b.zero_u256();
-        let (op1, _) = b.mul_u256(&value, &rewards_rate);
-        let (res, _, _) = b.div_u256(&op1, &total_supply);
+        let (op1, overflow) = b.mul_u256(&value, &rewards_rate);
+        // ensure the prover is not trying to obtain invalid results by overflowing the mul
+        let _false = b._false();
+        b.connect(overflow.target, _false.target);
+        let (res, _, div_by_zero) = b.div_u256(&op1, &total_supply);
+        // ensure the prover is not trying to obtain invalid results by dividing by zero
+        b.connect(div_by_zero.target, _false.target);
         let are_addresses_equal = address.equals(b, &query_address);
         // only output real value if user address == query address.
         // That's a hack to allow to still have a proof when a user is not included in a block since non membership

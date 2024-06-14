@@ -135,6 +135,45 @@ fn test_query_erc20_storage_leaf_circuit() {
     assert_eq!(pi.query_user_address(), address);
     assert_eq!(pi.query_results(), exp_query_results);
     assert_eq!(pi.query_rewards_rate(), rewards_rate);
+
+    // check that the circuit fails if there is an overflow
+    let value = U256::max_value();
+    let rewards_rate = U256::max_value();
+    let test_circuit = TestLeafCircuit {
+        c: LeafCircuit {
+            query_address: address,
+            address,
+            value,
+            total_supply,
+            rewards_rate,
+        },
+    };
+
+    assert!(
+            std::panic::catch_unwind(|| 
+            run_circuit::<_, D, C, _>(test_circuit)
+        ).is_err(), "leaf storage circuit didnn't catch overflow"
+    );
+
+    // check that the circuit fails if there is a division by zero
+    let value = U256::one();
+    let rewards_rate = U256::one();
+    let total_supply = U256::zero();
+    let test_circuit = TestLeafCircuit {
+        c: LeafCircuit {
+            query_address: address,
+            address,
+            value,
+            total_supply,
+            rewards_rate,
+        },
+    };
+
+    assert!(
+            std::panic::catch_unwind(|| 
+            run_circuit::<_, D, C, _>(test_circuit)
+        ).is_err(), "leaf storage circuit didnn't catch division by zero"
+    );
 }
 
 #[test]
@@ -196,7 +235,8 @@ fn test_query_erc20_storage_api() {
 
     let mut rng = thread_rng();
     let address = Address::random();
-    let [value, total_supply, rewards_rate] = [0; 3].map(|_| U256(rng.gen::<[u64; 4]>()));
+    // generate U256 from u128 to be sure to avoid overflows when multiplying
+    let [value, total_supply, rewards_rate] = [0; 3].map(|_| U256::from(rng.gen::<u128>()));
     let leaf = params
         .generate_proof(CircuitInput::new_leaf(
             address,
