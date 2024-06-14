@@ -89,7 +89,17 @@ pub struct BlockDBCircuitInfo<const MAX_DEPTH: usize> {
 }
 
 impl<const MAX_DEPTH: usize> BlockDBCircuitInfo<MAX_DEPTH> {
-    pub(crate) fn serialize(&self) -> Result<Vec<u8>> {
+    pub fn new(
+        circuit_set: RecursiveCircuits<F, C, D>,
+        verifier_data: VerifierOnlyCircuitData<C, D>,
+    ) -> Self {
+        Self {
+            circuit_set,
+            verifier_data,
+        }
+    }
+
+    pub fn serialize(&self) -> Result<Vec<u8>> {
         Ok(bincode::serialize(self)?)
     }
 
@@ -204,17 +214,17 @@ pub fn generate_proof<const MAX_DEPTH: usize>(
 pub fn block_db_circuit_info<const MAX_DEPTH: usize>(
     params: &PublicParameters<MAX_DEPTH>,
 ) -> Result<Vec<u8>> {
-    let block_db_info = BlockDBCircuitInfo::<MAX_DEPTH> {
-        circuit_set: params.block_db.get_block_db_circuit_set().clone(),
-        verifier_data: params.block_db.get_block_db_vk().clone(),
-    };
+    let block_db_info = BlockDBCircuitInfo::<MAX_DEPTH>::new(
+        params.block_db.get_block_db_circuit_set().clone(),
+        params.block_db.get_block_db_vk().clone(),
+    );
     block_db_info.serialize()
 }
 #[derive(Serialize, Deserialize)]
 /// Wrapper circuit around the different type of "end circuits" we expose. Reason we need one is to be able
 /// to always keep the same succinct wrapper circuit and Groth16 circuit regardless of the end result we submit
 /// onchain.
-struct WrapCircuitParams<const L: usize> {
+pub struct WrapCircuitParams<const L: usize> {
     query_verifier_wires: RecursiveCircuitsVerifierTarget<D>,
     #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
     circuit_data: CircuitData<F, C, D>,
@@ -225,7 +235,7 @@ where
     [(); num_io::<L>()]:,
     [(); <PoseidonHash as Hasher<F>>::HASH_SIZE]:,
 {
-    fn build(query_circuit_set: &RecursiveCircuits<F, C, D>) -> Self {
+    pub fn build(query_circuit_set: &RecursiveCircuits<F, C, D>) -> Self {
         let mut builder = CircuitBuilder::new(default_config());
         let verifier_gadget = RecursiveCircuitsVerifierGagdet::<F, C, D, { num_io::<L>() }>::new(
             default_config(),
@@ -244,7 +254,7 @@ where
         }
     }
 
-    fn generate_proof(
+    pub fn generate_proof(
         &self,
         query_circuit_set: &RecursiveCircuits<F, C, D>,
         query_proof: &ProofWithVK,
@@ -255,6 +265,10 @@ where
             .set_target(&mut pw, query_circuit_set, proof, vd)?;
         let proof = self.circuit_data.prove(pw)?;
         serialize_proof(&proof)
+    }
+
+    pub fn circuit_data(&self) -> &CircuitData<F, C, D> {
+        &self.circuit_data
     }
 }
 

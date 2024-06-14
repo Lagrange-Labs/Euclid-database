@@ -74,7 +74,7 @@ impl<const L: usize> RevelationErcInput<L> {
 
 const QUERY_ERC_BLOCK_NUM_IO: usize = block::BlockPublicInputs::<Target>::total_len();
 const BLOCK_DB_NUM_IO: usize = NUM_IVC_PUBLIC_INPUTS;
-pub(crate) const fn num_io<const L: usize>() -> usize {
+pub const fn num_io<const L: usize>() -> usize {
     revelation_num_io::<L>() + 1
 }
 

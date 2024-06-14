@@ -66,6 +66,11 @@
             "internalType": "bytes32",
             "name": "blockHash",
             "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rewardsRate",
+            "type": "uint256"
           }
         ],
         "internalType": "struct Query2.Query",

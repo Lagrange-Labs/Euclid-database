@@ -52,36 +52,36 @@ contract Verifier {
     uint256 constant EXP_SQRT_FP = 0xC19139CB84C680A6E14116DA060561765E05AA45A1C72A34F082305B61F3F52; // (P + 1) / 4;
 
     // Groth16 alpha point in G1
-    uint256 constant ALPHA_X = 17330333415741891630922857861759419140429713083870969195253056090268730588231;
-    uint256 constant ALPHA_Y = 13147855596032776537719854481999312435171557910049365942978708861164077957575;
+    uint256 constant ALPHA_X = 21240516409640074159992156247830471303318613709451580478046683288261228863107;
+    uint256 constant ALPHA_Y = 2863273447500662726540589889538139326922297979347073835004930101072635702167;
 
     // Groth16 beta point in G2 in powers of i
-    uint256 constant BETA_NEG_X_0 = 16758506161375482877946419026719722387897560880191209056997830356941212839159;
-    uint256 constant BETA_NEG_X_1 = 18690365973070251330753499224415149299939454691983701219739132712643323437878;
-    uint256 constant BETA_NEG_Y_0 = 16995821639930247773077730108733027487498161380709855480092878505524243550890;
-    uint256 constant BETA_NEG_Y_1 = 14791793727027044317952920303255740322021400376557943282051210578720229612916;
+    uint256 constant BETA_NEG_X_0 = 9622943318700839915620502627492638317225878995261086935391208320726699696091;
+    uint256 constant BETA_NEG_X_1 = 1915355384824813121540430733246104328063604536133804493912662899585912286885;
+    uint256 constant BETA_NEG_Y_0 = 3486640936748288141201090521922077045652997587123991678093958762361053217452;
+    uint256 constant BETA_NEG_Y_1 = 4261055074226999291012216260069736274638560654934039929903546784360386024495;
 
     // Groth16 gamma point in G2 in powers of i
-    uint256 constant GAMMA_NEG_X_0 = 6612902507567725758386783171447595420647781809247593703229977230235440844414;
-    uint256 constant GAMMA_NEG_X_1 = 8981361993102265689731431270177247100346559061827532052508210074678927755794;
-    uint256 constant GAMMA_NEG_Y_0 = 21004606401077180568650349773249268942216042401777624850698798102793286965305;
-    uint256 constant GAMMA_NEG_Y_1 = 11433264132087598003707523080238201575733673420719598458081934768186387686870;
+    uint256 constant GAMMA_NEG_X_0 = 20446168008593010703506739414396747911537528802810400810987576378139948230883;
+    uint256 constant GAMMA_NEG_X_1 = 9938344830880059644640837524255824539803536618795158361598623007532675287270;
+    uint256 constant GAMMA_NEG_Y_0 = 13241561899532022044356916790112186784480090603133498253236447851344817614755;
+    uint256 constant GAMMA_NEG_Y_1 = 15033979315717992650539636793642983809038285873892513756311692973714921200820;
 
     // Groth16 delta point in G2 in powers of i
-    uint256 constant DELTA_NEG_X_0 = 13460370536885233749691890264640592263801515945598308685489071389863989243329;
-    uint256 constant DELTA_NEG_X_1 = 7446078270362644430684835216126762286985640274636751500345177250271496710212;
-    uint256 constant DELTA_NEG_Y_0 = 8904343038167562222334203070823223879087699429785781640342675937747820730244;
-    uint256 constant DELTA_NEG_Y_1 = 1290769152595958748740647974364729107031538148561537699220651358442626768940;
+    uint256 constant DELTA_NEG_X_0 = 5057233726553684200414545040369972586840254254249332799679602273145725120188;
+    uint256 constant DELTA_NEG_X_1 = 21375177356820717456125639885952559565504618269990203805706128410408836720813;
+    uint256 constant DELTA_NEG_Y_0 = 2565437463233336066732079359136884404434383328608424217723037536374408961503;
+    uint256 constant DELTA_NEG_Y_1 = 1629531920701405296769355033111374027860865665297386448100611738795830922588;
 
     // Constant and public input points
-    uint256 constant CONSTANT_X = 12484752919865885501215786314075294543942985291057727061214566657996507846298;
-    uint256 constant CONSTANT_Y = 19505527132595050955469553293312183341573459530592707039483673646759904006825;
-    uint256 constant PUB_0_X = 16327013178463254976652579613899091625007820473590446550886511371829018728784;
-    uint256 constant PUB_0_Y = 7083422222358725867100058744605310021565841293370371085907616043842068564188;
-    uint256 constant PUB_1_X = 4244620810512547658447845948408759809816218603609835280267711619968181312984;
-    uint256 constant PUB_1_Y = 2230107385590436921838299794596970962734904149385984053604787814007327676896;
-    uint256 constant PUB_2_X = 20647736807720147971022511559654886362126545156356793679063651986530931148395;
-    uint256 constant PUB_2_Y = 7398313951863728616776849167145809591053838496122470935503477689196516311306;
+    uint256 constant CONSTANT_X = 15872046867362446613037110867505735869353943781323041265037366348995732996229;
+    uint256 constant CONSTANT_Y = 18204743816605744266917295311598586630045827491127366037081199919910134153346;
+    uint256 constant PUB_0_X = 1525128681295354430452259933683986301192768679565049058446925383742101820316;
+    uint256 constant PUB_0_Y = 18569965592898315534774698044305249715166051666906970536384326941971730868645;
+    uint256 constant PUB_1_X = 13655321137774104281658230437921903580259464705088947146801086009545440362501;
+    uint256 constant PUB_1_Y = 2605156225401539698855190068336862170045688673403865187991787913073163054778;
+    uint256 constant PUB_2_X = 11780442367952134545983279023737732821613270225534356887452597683195440415168;
+    uint256 constant PUB_2_Y = 1440868210672729738328406784295586301132697827683223028987611298375453327290;
 
     /// Negation in Fp.
     /// @notice Returns a number x such that a + x = 0 in Fp.
@@ -543,13 +543,16 @@ contract Verifier {
         }
     }
 
-    bytes32 constant CIRCUIT_DIGEST = 0x11dfacf55986a624e25127981619ea816ac50507cfc014f5b1f94dbfcf02c5e4;
+    bytes32 constant CIRCUIT_DIGEST = 0x2816759d0f7a8cd499354b2f471d63c78d15c2ddb925f8ca46c3ed129ae82807;
 
     // byteLen(uint160) / 4
     uint32 constant PACKED_ADDRESS_LEN = 5;
 
-    // byteLen(uint256) / 4
+    // byteLen(bytes32) / 4
     uint32 constant PACKED_HASH_LEN = 8;
+
+    // byteLen(uint256) / 4
+    uint32 constant PACKED_U256_LEN = 8;
 
     // Top 3 bits mask.
     uint256 constant TOP_THREE_BIT_MASK = ~(uint256(7) << 253);
@@ -564,7 +567,7 @@ contract Verifier {
     // The total length of the plonky2 public inputs. Each input value is
     // serialized as an uint64. It's related with both the full proof
     // serialization and the wrapped circuit code.
-    uint32 constant PI_TOTAL_LEN = (L + 24) * 8;
+    uint32 constant PI_TOTAL_LEN = (L + 41) * 8;
 
     // The min block number offset in the plonky2 public inputs.
     uint32 constant PI_MIN_BLOCK_NUM_OFFSET = 2 * 8;
@@ -584,6 +587,19 @@ contract Verifier {
     // The block hash offset in the plonky2 public inputs.
     uint32 constant PI_BLOCK_HASH_OFFSET = PI_NFT_IDS_OFFSET + L * 8;
 
+    // The rewards rate offset in the plonky2 public inputs.
+    uint32 constant PI_REWARDS_RATE_OFFSET = PI_BLOCK_HASH_OFFSET + PACKED_U256_LEN * 8;
+
+    // The ERC20 result offset in the plonky2 public inputs.
+    uint32 constant PI_ERC20_RESULT_OFFSET = PI_REWARDS_RATE_OFFSET + PACKED_U256_LEN * 8;
+
+    // The query identifier offset in the plonky2 public inputs.
+    uint32 constant PI_QUERY_IDENTIFIER_OFFSET = PI_ERC20_RESULT_OFFSET + PACKED_U256_LEN * 8;
+
+    // Supported query identifiers
+    uint8 constant QUERY_IDENTIFIER_NFT = 67;
+    uint8 constant QUERY_IDENTIFIER_ERC20 = 88;
+
     // The query struct used to check with the public inputs.
     struct Query {
         address contractAddress;
@@ -592,6 +608,7 @@ contract Verifier {
         uint256 minBlockNumber;
         uint256 maxBlockNumber;
         bytes32 blockHash;
+        uint256 rewardsRate;
     }
 
     // This processQuery function does the followings:
@@ -600,9 +617,10 @@ contract Verifier {
     // 2. Parse the plonky2 public inputs from the `data` argument.
     // 3. Calculate sha256 on the inputs to a hash value, and set the top 3 bits of this hash to 0.
     //    Then asset this hash value must be equal to the last Groth16 input (groth16_inputs[2]).
-    // 4. Parse a Query instance from the plonky2 public inputs, and asset it must be equal to the
+    // 4. Parse the query identifier from the plonky2 public inputs.
+    // 5. Parse a Query instance from the plonky2 public inputs, and asset it must be equal to the
     //    expected `query` argument.
-    // 5. Parse and return `L` NFT IDs (uint32) from the plonky2 public inputs.
+    // 5. Parse and return the query result from the plonky2 public inputs.
     function processQuery(bytes32[] calldata data, Query memory query) public view returns (uint256[] memory) {
         // 1. Do Groth16 verification.
         uint256[3] memory groth16_inputs = verifyGroth16Proof(data);
@@ -610,14 +628,17 @@ contract Verifier {
         // 2. Parse the plonky2 public inputs.
         bytes memory pis = parsePlonky2Inputs(data);
 
-        // 3. Assert the hash of plonky2 public inputs must be equal to the last Groth16 input.
+        // 3. Ensure the hash of plonky2 public inputs must be equal to the last Groth16 input.
         verifyPlonky2Inputs(pis, groth16_inputs);
 
-        // 3. Asset the query in plonky2 public inputs must be equal to expected `query` argument.
-        verifyQuery(pis, query);
+        // 4. Parse the query identifier from the plonky2 public inputs.
+        uint8 identifier = parseQueryIdentifier(pis);
 
-        // 4. Parse and return the NFT IDs.
-        return parseNftIds(pis);
+        // 5. Asset the query in plonky2 public inputs must be equal to expected `query` argument.
+        verifyQuery(pis, identifier, query);
+
+        // 4. Parse and return the query result.
+        return parseQueryResult(pis, identifier);
     }
 
     // Parse the Groth16 proofs and inputs, and do verification. It returns the Groth16 inputs.
@@ -626,10 +647,10 @@ contract Verifier {
         uint256[3] memory inputs;
 
         for (uint32 i = 0; i < 8; ++i) {
-            proofs[i] = convertToU256(data[i]);
+            proofs[i] = convertBytes32ToU256(data[i]);
         }
         for (uint32 i = 0; i < 3; ++i) {
-            inputs[i] = convertToU256(data[i + 8]);
+            inputs[i] = convertBytes32ToU256(data[i + 8]);
         }
 
         // Require the sha256 hash equals to the last Groth16 input.
@@ -676,54 +697,78 @@ contract Verifier {
     }
 
     // Verify the plonky2 inputs with the expected Query instance.
-    function verifyQuery(bytes memory pis, Query memory query) internal pure {
-        uint32 min_block_number = convertToU32(pis, PI_MIN_BLOCK_NUM_OFFSET);
+    function verifyQuery(bytes memory pis, uint8 identifier, Query memory query) internal pure {
+        uint32 minBlockNumber = convertToU32(pis, PI_MIN_BLOCK_NUM_OFFSET);
         require(
-            min_block_number == query.minBlockNumber,
+            minBlockNumber == query.minBlockNumber,
             "The parsed min block number must be equal to the expected one in query."
         );
 
-        uint32 max_block_number = convertToU32(pis, PI_MAX_BLOCK_NUM_OFFSET);
+        uint32 maxBlockNumber = convertToU32(pis, PI_MAX_BLOCK_NUM_OFFSET);
         require(
-            max_block_number == query.maxBlockNumber,
+            maxBlockNumber == query.maxBlockNumber,
             "The parsed max block number must be equal to the expected one in query."
         );
 
-        address contract_address = convertToAddress(pis, PI_CONTRACT_ADDR_OFFSET);
+        address contractAddress = convertToAddress(pis, PI_CONTRACT_ADDR_OFFSET);
         require(
-            contract_address == query.contractAddress,
+            contractAddress == query.contractAddress,
             "The parsed contract address must be equal to the expected one in query."
         );
 
-        address user_address = convertToAddress(pis, PI_USER_ADDR_OFFSET);
+        address userAddress = convertToAddress(pis, PI_USER_ADDR_OFFSET);
         require(
-            user_address == query.userAddress,
+            userAddress == query.userAddress,
             "The parsed user address must be equal to the expected one in query."
         );
 
-        bytes32 block_hash = convertToHash(pis, PI_BLOCK_HASH_OFFSET);
+        bytes32 blockHash = bytes32(convertToHash(pis, PI_BLOCK_HASH_OFFSET));
         require(
-            block_hash == query.blockHash,
+            blockHash == query.blockHash,
             "The parsed block hash must be equal to the expected one in query."
         );
+
+        if (identifier == QUERY_IDENTIFIER_ERC20) {
+            uint256 rewardsRate = convertByteSliceToU256(pis, PI_REWARDS_RATE_OFFSET);
+            require(
+                rewardsRate == query.rewardsRate,
+                "The parsed rewards rate must be equal to the expected one in query."
+            );
+        }
+    }
+
+    // Parse the query identifier.
+    function parseQueryIdentifier(bytes memory pis) internal pure returns (uint8) {
+        return uint8(pis[PI_QUERY_IDENTIFIER_OFFSET]);
+    }
+
+    // Parse the query result from the plonky2 public inputs.
+    function parseQueryResult(bytes memory pis, uint8 identifier) internal pure returns (uint256[] memory) {
+        if (identifier == QUERY_IDENTIFIER_NFT) {
+            return parseNftIds(pis);
+        } else if (identifier == QUERY_IDENTIFIER_ERC20) {
+            return parseErc20Result(pis);
+        } else {
+            revert("Unsupported query identifier");
+        }
     }
 
     // Parse the `L` NFT IDs from the plonky2 public inputs.
     function parseNftIds(bytes memory pis) internal pure returns (uint256[] memory) {
         uint256[] memory nft_ids = new uint256[](L);
         for (uint32 i = 0; i < L; ++i) {
-            nft_ids[i] = uint256(convertToLeftPaddingU32(pis, PI_NFT_IDS_OFFSET + i * 8));
+            // TODO: need to test more in lagrange-lpn-contracts, it works with the groth16 test (decoding from the output by ABI).
+            nft_ids[i] = uint256(convertToU32(pis, PI_NFT_IDS_OFFSET + i * 8));
+            // nft_ids[i] = uint256(convertToLeftPaddingU32(pis, PI_NFT_IDS_OFFSET + i * 8));
         }
 
         return nft_ids;
     }
 
-    // Convert a bytes32 to an uint256.
-    function convertToU256(bytes32 b) internal pure returns (uint256) {
-        uint256 result;
-        for (uint32 i = 0; i < 32; i++) {
-            result |= uint256(uint8(b[i])) << (8 * i);
-        }
+    // Parse the ERC20 result from the plonky2 public inputs.
+    function parseErc20Result(bytes memory pis) internal pure returns (uint256[] memory) {
+        uint256[] memory result = new uint256[](1);
+        result[0] = convertByteSliceToU256(pis, PI_ERC20_RESULT_OFFSET);
 
         return result;
     }
@@ -743,6 +788,26 @@ contract Verifier {
         uint32 result;
         for (uint32 i = 0; i < 4; ++i) {
             result |= uint32(uint8(data[i + offset])) << (8 * (3 - i));
+        }
+
+        return result;
+    }
+
+    // Convert a bytes32 to an uint256.
+    function convertBytes32ToU256(bytes32 b) internal pure returns (uint256) {
+        uint256 result;
+        for (uint32 i = 0; i < 32; i++) {
+            result |= uint256(uint8(b[i])) << (8 * i);
+        }
+
+        return result;
+    }
+
+    // Convert the specified byte slice to an uint256.
+    function convertByteSliceToU256(bytes memory pis, uint32 offset) internal pure returns (uint256) {
+        uint256 result;
+        for (uint32 i = 0; i < 8 ; ++i) {
+            result |= uint256(convertToU32(pis, offset + i * 8));
         }
 
         return result;
