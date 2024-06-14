@@ -75,7 +75,9 @@ impl<const L: usize> RevelationCircuit<L> {
         b.connect_hashes(root_proof.root(), db_proof.root());
         b.connect_hashes(db_proof.init_root(), empty_root);
 
+        let one = b.one();
         let computed_min_block = b.sub(root_proof.block_number(), root_proof.range());
+        let computed_min_block = b.add(computed_min_block, one);
         let min_block_in_db = db_proof.first_block_number();
         let max_block_in_db = db_proof.block_number();
 
