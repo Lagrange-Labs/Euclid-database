@@ -17,10 +17,7 @@ use plonky2::{
 };
 
 use crate::{
-    api::{
-        default_config, deserialize_proof, ProofWithVK, C, D, F,
-        QUERY_CIRCUIT_SET_SIZE,
-    },
+    api::{default_config, deserialize_proof, ProofWithVK, C, D, F, QUERY_CIRCUIT_SET_SIZE},
     block::NUM_IVC_PUBLIC_INPUTS,
     query_erc20::block,
 };

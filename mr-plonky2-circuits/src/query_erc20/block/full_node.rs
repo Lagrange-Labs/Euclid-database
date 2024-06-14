@@ -59,7 +59,8 @@ impl FullNodeCircuit {
         let new_range_min_bound = b.sub(inputs[0].block_number(), inputs[0].range());
         let new_upper_block = inputs[1].block_number();
         let new_range_length = b.sub(new_upper_block, new_range_min_bound);
-        let (new_result, overflow) = b.add_u256(&inputs[0].query_results(), &inputs[1].query_results());
+        let (new_result, overflow) =
+            b.add_u256(&inputs[0].query_results(), &inputs[1].query_results());
         // ensure the prover is not trying to obtain invalid results by overflowing the mul
         let _false = b._false();
         b.connect(overflow.0, _false.target);

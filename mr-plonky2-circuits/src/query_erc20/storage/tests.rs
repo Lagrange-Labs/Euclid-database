@@ -150,9 +150,8 @@ fn test_query_erc20_storage_leaf_circuit() {
     };
 
     assert!(
-            std::panic::catch_unwind(|| 
-            run_circuit::<_, D, C, _>(test_circuit)
-        ).is_err(), "leaf storage circuit didnn't catch overflow"
+        std::panic::catch_unwind(|| run_circuit::<_, D, C, _>(test_circuit)).is_err(),
+        "leaf storage circuit didnn't catch overflow"
     );
 
     // check that the circuit fails if there is a division by zero
@@ -170,9 +169,8 @@ fn test_query_erc20_storage_leaf_circuit() {
     };
 
     assert!(
-            std::panic::catch_unwind(|| 
-            run_circuit::<_, D, C, _>(test_circuit)
-        ).is_err(), "leaf storage circuit didnn't catch division by zero"
+        std::panic::catch_unwind(|| run_circuit::<_, D, C, _>(test_circuit)).is_err(),
+        "leaf storage circuit didnn't catch division by zero"
     );
 }
 
