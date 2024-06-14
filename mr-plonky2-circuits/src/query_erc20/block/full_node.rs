@@ -3,7 +3,7 @@ use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use std::array::from_fn as create_array;
 
 use itertools::Itertools;
-use mrp2_utils::{types::PackedU256Target, u256::CircuitBuilderU256};
+use mrp2_utils::u256::CircuitBuilderU256;
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::{hash_types::NUM_HASH_OUT_ELTS, poseidon::PoseidonHash},

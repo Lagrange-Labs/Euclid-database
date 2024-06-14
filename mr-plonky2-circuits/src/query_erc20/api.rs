@@ -3,6 +3,13 @@ use super::{
     state::{self, CircuitInputsInternal},
     storage,
 };
+
+pub use super::storage::CircuitInput as StorageCircuitInput;
+pub use super::state::CircuitInput as StateCircuitInput;
+pub use super::block::CircuitInput as BlockCircuitInput;
+pub use super::revelation::RevelationRecursiveInput;
+
+
 use crate::api::{BlockDBCircuitInfo, C, D, F};
 use serde::{Deserialize, Serialize};
 

@@ -1,4 +1,3 @@
-use crate::types::PackedU256Target;
 use std::array::from_fn as create_array;
 
 use ethers::prelude::U256;
