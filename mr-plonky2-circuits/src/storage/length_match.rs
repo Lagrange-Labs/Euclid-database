@@ -13,7 +13,7 @@ use crate::{
     utils::{convert_point_to_curve_target, convert_slice_to_curve_point},
 };
 use anyhow::Result;
-use ethers::core::k256::pkcs8::der::Length;
+use mrp2_utils::serialization::{deserialize, serialize};
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     iop::{
