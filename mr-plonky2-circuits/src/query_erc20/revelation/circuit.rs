@@ -1,5 +1,8 @@
 use itertools::Itertools;
-use mrp2_utils::utils::keccak256;
+use mrp2_utils::{
+    serialization::{deserialize, serialize},
+    utils::keccak256,
+};
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::{hash_types::HashOutTarget, poseidon::PoseidonHash},
@@ -20,7 +23,6 @@ use recursion_framework::{
     framework::{
         RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
     },
-    serialization::{deserialize, serialize},
 };
 use serde::{Deserialize, Serialize};
 
