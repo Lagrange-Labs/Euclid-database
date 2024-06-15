@@ -40,7 +40,7 @@
 //!
 //! 3. Prove the normal proofs of mapreduce-plonky2
 //!
-//!    This proving step could be called for mulitple times to generate the
+//!    This proving step could be called for multiple times to generate the
 //!    Groth16 proofs. It's called as below.
 //!
 //!    ``
