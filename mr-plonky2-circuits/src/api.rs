@@ -155,11 +155,12 @@ pub fn generate_proof<const MAX_DEPTH: usize>(
             params.length_extract.generate(length_extract_input)
         }
         CircuitInput::LengthMatch(length_match_input) => {
-            let (mapping_proof, length_proof) = length_match_input.try_into()?;
+            let (mapping_proof, length_proof, skip_match) = length_match_input.try_into()?;
             params.length_match.generate_proof(
                 params.mapping.get_mapping_circuit_set(),
                 &mapping_proof,
                 &length_proof,
+                skip_match,
             )
         }
         CircuitInput::Storage(storage_input) => params.lpn_storage.generate_proof(storage_input),
