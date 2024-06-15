@@ -7,5 +7,6 @@ mod storage;
 mod tests;
 
 pub use api::{
-    BlockCircuitInput, CircuitInput, PublicParameters, StateCircuitInput, StorageCircuitInput,
+    BlockCircuitInput, CircuitInput, PublicParameters, RevelationErcInput, StateCircuitInput,
+    StorageCircuitInput,
 };

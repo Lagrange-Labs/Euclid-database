@@ -318,11 +318,11 @@ where
                 .generate_proof(inputs, &self.query_circuit_set),
         }?;
         if !is_revelation {
+            Ok(query_proof.to_vec())
+        } else {
             let query_proof = ProofWithVK::deserialize(&query_proof)?;
             self.wrap_circuit
                 .generate_proof(&self.query_circuit_set, &query_proof)
-        } else {
-            Ok(query_proof.to_vec())
         }
     }
     /// Circuit data for the final query proof being returned by `generate_proof`
