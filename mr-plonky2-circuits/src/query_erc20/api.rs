@@ -6,7 +6,7 @@ use super::{
 };
 
 pub use super::block::CircuitInput as BlockCircuitInput;
-pub use super::revelation::RevelationRecursiveInput;
+pub use super::revelation::RevelationErcInput;
 pub use super::state::CircuitInput as StateCircuitInput;
 pub use super::storage::CircuitInput as StorageCircuitInput;
 
@@ -18,6 +18,7 @@ use plonky2::{
 use recursion_framework::framework::RecursiveCircuits;
 use serde::{Deserialize, Serialize};
 
+use crate::query_erc20::revelation::RevelationRecursiveInput;
 use anyhow::Result;
 
 /// L is the number of elements we allow to expose in the result
