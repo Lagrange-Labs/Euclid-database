@@ -73,7 +73,7 @@ contract Query2 is Verifier {
         // 3. Assert the hash of plonky2 public inputs must be equal to the last Groth16 input.
         verifyPlonky2Inputs(pis, groth16_inputs);
 
-        // 3. Asset the query in plonky2 public inputs must be equal to expected `query` argument.
+        // 3. Asset the query in plonky2 public inputs must be equal to the expected `query` argument.
         verifyQuery(pis, query);
 
         // 4. Parse and return the NFT IDs.
