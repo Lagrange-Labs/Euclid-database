@@ -226,9 +226,6 @@ mod test {
             let exp_value = Array::<Target, MAPPING_LEAF_VALUE_LEN>::new(b);
             let leaf_wires = LeafCircuit::<NODE_LEN>::build(b);
             leaf_wires.value.enforce_equal(b, &exp_value);
-            //let eq = leaf_wires.value.equals(b, &exp_value);
-            //let tt = b._true();
-            //b.connect(tt.target, eq.target);
             (leaf_wires, exp_value)
         }
 
@@ -258,7 +255,8 @@ mod test {
         ProofQuery::verify_storage_proof(&res)?;
         let value = res.storage_proof[0].value;
         let mut value_buff = [0u8; 32];
-        value.to_little_endian(&mut value_buff[..]);
+        // always treat EVM value as big endian
+        value.to_big_endian(&mut value_buff[..]);
         println!("value = {}", value);
         let leaf_node = res.storage_proof[0].proof.last().cloned().unwrap();
         println!("length of leaf node: {}", leaf_node.len());
