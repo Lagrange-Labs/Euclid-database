@@ -118,7 +118,7 @@ fn test_query_erc20_storage_leaf_circuit() {
     // Calculate the expected hash:
     // C = poseidon(pack_u32(address) || pack_u32(value))
     let mut bytes = [0; 32];
-    value.to_little_endian(&mut bytes);
+    value.to_big_endian(&mut bytes);
     let hash_bytes = leaf_hash_for_mapping(&address.to_fixed_bytes(), &bytes);
     let exp_c = HashOut::from_bytes(&hash_bytes);
 

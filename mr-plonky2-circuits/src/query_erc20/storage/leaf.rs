@@ -66,7 +66,8 @@ impl LeafCircuit {
         // C = poseidon(pack_u32(left_pad32(address)) || pack_u32(left_pad32(value)))
         let inputs = packed_key_mapping
             .into_iter()
-            .chain(<&UInt256Target as Into<Vec<Target>>>::into(&value))
+            //.chain(<&UInt256Target as Into<Vec<Target>>>::into(&value))
+            .chain(value.to_big_endian_targets().into_iter())
             .collect();
         let c = b.hash_n_to_hash_no_pad::<PoseidonHash>(inputs);
 
