@@ -34,7 +34,7 @@ use recursion_framework::framework::{
 use serde::{Deserialize, Serialize};
 use std::array;
 
-const MAGIC_SLOT: u8 = u8::MAX;
+pub const MAGIC_SLOT: u8 = u8::MAX;
 /// This is a wrapper around an array of targets set as public inputs of any
 /// proof generated in this module. They all share the same structure.
 /// `D` Digest of the all mapping values
