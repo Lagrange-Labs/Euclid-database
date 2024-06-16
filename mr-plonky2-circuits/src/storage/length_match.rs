@@ -34,7 +34,7 @@ use recursion_framework::framework::{
 use serde::{Deserialize, Serialize};
 use std::array;
 
-const MAGIC_SLOT: usize = 0x123456789;
+const MAGIC_SLOT: u8 = u8::MAX;
 /// This is a wrapper around an array of targets set as public inputs of any
 /// proof generated in this module. They all share the same structure.
 /// `D` Digest of the all mapping values
@@ -139,7 +139,7 @@ impl LengthMatchCircuit {
         let length_value = length_pi.length_value();
         let n = mapping_pi.n();
         let length_equal = cb.is_equal(length_value, n);
-        let magic_slot = cb.constant(GoldilocksField::from_canonical_usize(MAGIC_SLOT));
+        let magic_slot = cb.constant(GoldilocksField::from_canonical_u8(MAGIC_SLOT));
         let should_be_true = cb.select(skip_equal, true_.target, length_equal.target);
         cb.connect(should_be_true, true_.target);
 
