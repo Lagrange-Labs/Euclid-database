@@ -1,6 +1,8 @@
 //! Module handling the recursive proving of mapping entries specically
 //! inside a storage trie.
 
+use std::array::from_fn as create_array;
+
 use crate::mpt_sequential::MAX_LEAF_VALUE_LEN;
 use crate::rlp::short_string_len;
 use crate::storage::key::{MappingSlotWires, MAPPING_INPUT_TOTAL_LEN};
@@ -14,6 +16,8 @@ use crate::{
     mpt_sequential::{Circuit as MPTCircuit, PAD_LEN},
     rlp::decode_fixed_list,
 };
+use mrp2_utils::utils::{less_than, less_than_or_equal_to};
+use plonky2::field::types::Field;
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     iop::{target::Target, witness::PartialWitness},
@@ -86,13 +90,19 @@ where
             );
         b.connect(tru.target, is_valid.target);
         // Read the length of the relevant data (RLP header - 0x80)
-        let data_len = short_string_len(b, &encoded_value[0]);
-        // Create vector of only the relevant data - skipping the RLP header
-        // + stick with the same encoding of the data but pad_left32.
+        let one = b.one();
+
+        let prefix = encoded_value[0];
+        let byte_80 = b.constant(GoldilocksField::from_canonical_usize(128));
+        let is_single_byte = less_than(b, prefix, byte_80, 8);
+        let value_len_80 = b.sub(encoded_value[0], byte_80);
+        let value_len = b.select(is_single_byte, one, value_len_80);
+        let offset = b.select(is_single_byte, zero, one);
         let big_endian_left_padded = encoded_value
-            .take_last::<GoldilocksField, 2, MAPPING_LEAF_VALUE_LEN>()
-            .into_vec(data_len)
+            .extract_array::<GoldilocksField, _, MAPPING_LEAF_VALUE_LEN>(b, offset)
+            .into_vec(value_len)
             .normalize_left::<_, _, MAPPING_LEAF_VALUE_LEN>(b);
+
         // Then creates the initial accumulator from the (mapping_key, value)
         let mut inputs = [b.zero(); MAPPING_INPUT_TOTAL_LEN];
         inputs[0..MAPPING_KEY_LEN].copy_from_slice(&mapping_slot_wires.mapping_key.arr);
@@ -116,8 +126,6 @@ where
             &root.output_array,
             &leaf_accumulator,
         );
-        //mapping_slot_wires.mapping_key.register_as_public_input(b);
-        //big_endian_left_padded.register_as_public_input(b);
         LeafWires {
             node,
             root,
@@ -199,7 +207,7 @@ mod test {
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
-    use mrp2_utils::eth::ProofQuery;
+    use mrp2_utils::eth::{left_pad32, ProofQuery};
 
     use crate::storage::mapping::leaf::PAD_LEN;
     #[derive(Clone, Debug)]
@@ -217,7 +225,7 @@ mod test {
         fn build(b: &mut CircuitBuilder<F, D>) -> Self::Wires {
             let exp_value = Array::<Target, MAPPING_LEAF_VALUE_LEN>::new(b);
             let leaf_wires = LeafCircuit::<NODE_LEN>::build(b);
-            //leaf_wires.value.enforce_equal(b, &exp_value);
+            leaf_wires.value.enforce_equal(b, &exp_value);
             //let eq = leaf_wires.value.equals(b, &exp_value);
             //let tt = b._true();
             //b.connect(tt.target, eq.target);
@@ -228,7 +236,7 @@ mod test {
             self.c.assign(pw, &wires.0);
             wires
                 .1
-                .assign_bytes(pw, &self.exp_value.clone().try_into().unwrap());
+                .assign_bytes(pw, &left_pad32(&self.exp_value).try_into().unwrap());
         }
     }
 
@@ -251,8 +259,16 @@ mod test {
         let value = res.storage_proof[0].value;
         let mut value_buff = [0u8; 32];
         value.to_little_endian(&mut value_buff[..]);
-        println!("{}", value);
+        println!("value = {}", value);
         let leaf_node = res.storage_proof[0].proof.last().cloned().unwrap();
+        println!("length of leaf node: {}", leaf_node.len());
+        let leaf_list: Vec<Vec<u8>> = rlp::decode_list(&leaf_node);
+        assert_eq!(leaf_list.len(), 2);
+        let rvalue = rlp::Rlp::new(&leaf_list[1]);
+        println!(
+            "header len of value {}",
+            rvalue.payload_info().unwrap().header_len
+        );
         let circuit = TestLeafCircuit {
             c: LeafCircuit::<80> {
                 node: leaf_node.to_vec(),
