@@ -168,12 +168,19 @@ impl CircuitLogicWires<GoldilocksField, 2, 0> for StorageLeafWire {
 }
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use crate::rlp::MAX_KEY_NIBBLE_LEN;
     use crate::storage::lpn::leaf_digest_for_mapping;
     use crate::utils::keccak256;
     use eth_trie::{Nibbles, Trie};
+    use ethers::{
+        providers::{Http, Provider},
+        types::Address,
+    };
     use mrp2_test_utils::{
         circuit::{run_circuit, UserCircuit},
+        eth::{get_holesky_url, get_mainnet_url},
         mpt_sequential::generate_random_storage_mpt,
         utils::random_vector,
     };
@@ -192,6 +199,7 @@ mod test {
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
+    use mrp2_utils::eth::ProofQuery;
 
     use crate::storage::mapping::leaf::PAD_LEN;
     #[derive(Clone, Debug)]
@@ -222,6 +230,25 @@ mod test {
                 .1
                 .assign_bytes(pw, &self.exp_value.clone().try_into().unwrap());
         }
+    }
+
+    use anyhow::Result;
+    #[tokio::test]
+    async fn test_erc20_mapping() -> Result<()> {
+        let mapping_slot = 0;
+        let contract_address =
+            Address::from_str("0x255139393eb4d63e2789df321065b63908f837a5").unwrap();
+        let user_address = Address::from_str("0xd2b34440a93235f8f81cf1a772afdef4f9c82e3f").unwrap();
+        let url = get_holesky_url();
+        let provider = Provider::<Http>::try_from(url).unwrap();
+        let query = ProofQuery::new_mapping_slot(
+            contract_address,
+            mapping_slot,
+            user_address.to_fixed_bytes().to_vec(),
+        );
+        let res = query.query_mpt_proof(&provider, None).await?;
+        ProofQuery::verify_storage_proof(&res)?;
+        Ok(())
     }
 
     #[test]

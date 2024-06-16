@@ -18,3 +18,10 @@ pub fn get_mainnet_url() -> String {
     let url = "https://eth.llamarpc.com";
     url.to_string()
 }
+
+pub fn get_holesky_url() -> String {
+ let url =
+        env::var("CI_HOLESKY").unwrap_or("https://ethereum-sepolia-rpc.publicnode.com".to_string());
+    url.to_string()
+   
+}
