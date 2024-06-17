@@ -411,6 +411,10 @@ impl UInt256Target {
                 .unwrap(),
         ))
     }
+
+    pub fn to_big_endian_targets(&self) -> Vec<Target> {
+        self.0.iter().map(|u32_t| u32_t.0).rev().collect_vec()
+    }
 }
 
 impl<'a> Into<Vec<Target>> for &'a UInt256Target {

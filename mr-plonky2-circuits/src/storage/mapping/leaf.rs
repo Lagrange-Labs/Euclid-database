@@ -1,6 +1,8 @@
 //! Module handling the recursive proving of mapping entries specically
 //! inside a storage trie.
 
+use std::array::from_fn as create_array;
+
 use crate::mpt_sequential::MAX_LEAF_VALUE_LEN;
 use crate::rlp::short_string_len;
 use crate::storage::key::{MappingSlotWires, MAPPING_INPUT_TOTAL_LEN};
@@ -14,6 +16,8 @@ use crate::{
     mpt_sequential::{Circuit as MPTCircuit, PAD_LEN},
     rlp::decode_fixed_list,
 };
+use mrp2_utils::utils::{less_than, less_than_or_equal_to};
+use plonky2::field::types::Field;
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     iop::{target::Target, witness::PartialWitness},
@@ -86,13 +90,19 @@ where
             );
         b.connect(tru.target, is_valid.target);
         // Read the length of the relevant data (RLP header - 0x80)
-        let data_len = short_string_len(b, &encoded_value[0]);
-        // Create vector of only the relevant data - skipping the RLP header
-        // + stick with the same encoding of the data but pad_left32.
+        let one = b.one();
+
+        let prefix = encoded_value[0];
+        let byte_80 = b.constant(GoldilocksField::from_canonical_usize(128));
+        let is_single_byte = less_than(b, prefix, byte_80, 8);
+        let value_len_80 = b.sub(encoded_value[0], byte_80);
+        let value_len = b.select(is_single_byte, one, value_len_80);
+        let offset = b.select(is_single_byte, zero, one);
         let big_endian_left_padded = encoded_value
-            .take_last::<GoldilocksField, 2, MAPPING_LEAF_VALUE_LEN>()
-            .into_vec(data_len)
+            .extract_array::<GoldilocksField, _, MAPPING_LEAF_VALUE_LEN>(b, offset)
+            .into_vec(value_len)
             .normalize_left::<_, _, MAPPING_LEAF_VALUE_LEN>(b);
+
         // Then creates the initial accumulator from the (mapping_key, value)
         let mut inputs = [b.zero(); MAPPING_INPUT_TOTAL_LEN];
         inputs[0..MAPPING_KEY_LEN].copy_from_slice(&mapping_slot_wires.mapping_key.arr);
@@ -116,8 +126,6 @@ where
             &root.output_array,
             &leaf_accumulator,
         );
-        //mapping_slot_wires.mapping_key.register_as_public_input(b);
-        //big_endian_left_padded.register_as_public_input(b);
         LeafWires {
             node,
             root,
@@ -168,12 +176,19 @@ impl CircuitLogicWires<GoldilocksField, 2, 0> for StorageLeafWire {
 }
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use crate::rlp::MAX_KEY_NIBBLE_LEN;
     use crate::storage::lpn::leaf_digest_for_mapping;
     use crate::utils::keccak256;
     use eth_trie::{Nibbles, Trie};
+    use ethers::{
+        providers::{Http, Provider},
+        types::Address,
+    };
     use mrp2_test_utils::{
         circuit::{run_circuit, UserCircuit},
+        eth::{get_holesky_url, get_mainnet_url},
         mpt_sequential::generate_random_storage_mpt,
         utils::random_vector,
     };
@@ -192,6 +207,7 @@ mod test {
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
+    use mrp2_utils::eth::{left_pad32, ProofQuery};
 
     use crate::storage::mapping::leaf::PAD_LEN;
     #[derive(Clone, Debug)]
@@ -210,9 +226,6 @@ mod test {
             let exp_value = Array::<Target, MAPPING_LEAF_VALUE_LEN>::new(b);
             let leaf_wires = LeafCircuit::<NODE_LEN>::build(b);
             leaf_wires.value.enforce_equal(b, &exp_value);
-            //let eq = leaf_wires.value.equals(b, &exp_value);
-            //let tt = b._true();
-            //b.connect(tt.target, eq.target);
             (leaf_wires, exp_value)
         }
 
@@ -220,8 +233,50 @@ mod test {
             self.c.assign(pw, &wires.0);
             wires
                 .1
-                .assign_bytes(pw, &self.exp_value.clone().try_into().unwrap());
+                .assign_bytes(pw, &left_pad32(&self.exp_value).try_into().unwrap());
         }
+    }
+
+    use anyhow::Result;
+    #[tokio::test]
+    async fn test_erc20_mapping_leaf() -> Result<()> {
+        let mapping_slot = 0;
+        let contract_address =
+            Address::from_str("0x255139393eb4d63e2789df321065b63908f837a5").unwrap();
+        let user_address = Address::from_str("0xd2b34440a93235f8f81cf1a772afdef4f9c82e3f").unwrap();
+        let url = get_holesky_url();
+        let provider = Provider::<Http>::try_from(url).unwrap();
+        let query = ProofQuery::new_mapping_slot(
+            contract_address,
+            mapping_slot,
+            user_address.to_fixed_bytes().to_vec(),
+        );
+        let res = query.query_mpt_proof(&provider, None).await?;
+        ProofQuery::verify_storage_proof(&res)?;
+        let value = res.storage_proof[0].value;
+        let mut value_buff = [0u8; 32];
+        // always treat EVM value as big endian
+        value.to_big_endian(&mut value_buff[..]);
+        println!("value = {}", value);
+        let leaf_node = res.storage_proof[0].proof.last().cloned().unwrap();
+        println!("length of leaf node: {}", leaf_node.len());
+        let leaf_list: Vec<Vec<u8>> = rlp::decode_list(&leaf_node);
+        assert_eq!(leaf_list.len(), 2);
+        let rvalue = rlp::Rlp::new(&leaf_list[1]);
+        println!(
+            "header len of value {}",
+            rvalue.payload_info().unwrap().header_len
+        );
+        let circuit = TestLeafCircuit {
+            c: LeafCircuit::<80> {
+                node: leaf_node.to_vec(),
+                slot: MappingSlot::new(mapping_slot as u8, user_address.to_fixed_bytes().to_vec()),
+            },
+            exp_value: value_buff.to_vec(),
+        };
+        let proof = run_circuit::<F, D, C, _>(circuit);
+        let pi = PublicInputs::<F>::from(&proof.public_inputs);
+        Ok(())
     }
 
     #[test]

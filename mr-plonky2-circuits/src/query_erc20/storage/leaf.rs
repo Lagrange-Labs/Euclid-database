@@ -1,4 +1,5 @@
-use mrp2_utils::types::PackedMappingKeyTarget;
+use mrp2_utils::array::Array;
+use mrp2_utils::types::{PackedMappingKeyTarget, MAPPING_KEY_LEN, VALUE_LEN};
 use mrp2_utils::u256::{CircuitBuilderU256, UInt256Target, WitnessWriteU256};
 
 use crate::{
@@ -21,7 +22,7 @@ pub struct LeafWires {
     // Note this is a fix because we can't prove non membership yet in v0
     address: PackedAddressTarget,
     query_address: PackedAddressTarget,
-    value: UInt256Target,
+    value_bytes_be: Array<Target, VALUE_LEN>,
     total_supply: UInt256Target,
     rewards_rate: UInt256Target,
 }
@@ -42,8 +43,10 @@ impl LeafCircuit {
         let query_address = self.query_address.0.pack().try_into().unwrap();
         wires.query_address.assign_from_data(pw, &query_address);
 
+        let mut value_buff = [0u8; 32];
+        self.value.to_big_endian(&mut value_buff[..]);
+        wires.value_bytes_be.assign_bytes(pw, &value_buff);
         [
-            (self.value, &wires.value),
             (self.total_supply, &wires.total_supply),
             (self.rewards_rate, &wires.rewards_rate),
         ]
@@ -56,7 +59,15 @@ impl LeafCircuit {
         let address = PackedAddressTarget::new(b);
         // address of the query we expose as public input
         let query_address = PackedAddressTarget::new(b);
-        let [value, total_supply, rewards_rate] = [0; 3].map(|_| b.add_virtual_u256());
+        let value_big_endian = Array::<Target, VALUE_LEN>::new(b);
+        value_big_endian.assert_bytes(b);
+        // this is what goes into the hashing structure since that's how we extract it
+        let packed_be = value_big_endian.convert_u8_to_u32(b);
+        // this is what goes into the u256 computation since it expects LE format
+        let packed_le = value_big_endian.reverse().convert_u8_to_u32(b);
+        // unwrap is safe because we exactly give 32 bytes  in packed format
+        let value_u256 = UInt256Target::new_from_limbs(&packed_le.arr).unwrap();
+        let [total_supply, rewards_rate] = [0; 2].map(|_| b.add_virtual_u256());
 
         // we left_pad the address to 8 (packed 32bytes ) as it is the
         // hashing structure expected: 32 byte for mapping key packed = 8 fields
@@ -66,14 +77,15 @@ impl LeafCircuit {
         // C = poseidon(pack_u32(left_pad32(address)) || pack_u32(left_pad32(value)))
         let inputs = packed_key_mapping
             .into_iter()
-            .chain(<&UInt256Target as Into<Vec<Target>>>::into(&value))
+            //.chain(<&UInt256Target as Into<Vec<Target>>>::into(&value))
+            .chain(packed_be.to_targets().arr)
             .collect();
         let c = b.hash_n_to_hash_no_pad::<PoseidonHash>(inputs);
 
         // V = R * value / totalSupply
         // do multiplication first then division
         let zero_u256 = b.zero_u256();
-        let (op1, overflow) = b.mul_u256(&value, &rewards_rate);
+        let (op1, overflow) = b.mul_u256(&value_u256, &rewards_rate);
         // ensure the prover is not trying to obtain invalid results by overflowing the mul
         let _false = b._false();
         b.connect(overflow.target, _false.target);
@@ -90,7 +102,7 @@ impl LeafCircuit {
         LeafWires {
             address,
             query_address,
-            value,
+            value_bytes_be: value_big_endian,
             total_supply,
             rewards_rate,
         }
