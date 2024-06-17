@@ -56,12 +56,12 @@ fn test_groth16_proving_for_queries() {
 /// Verify the Query2 Solidity function.
 fn verify_query2_solidity_fun(asset_dir: &str, query: &TestQuery, query_result: TestQueryResult) {
     let solidity_file_path = Path::new("test_data")
-        .join("query2_verifier.sol")
+        .join("TestGroth16Verifier.sol")
         .to_string_lossy()
         .to_string();
 
     let contract = Contract::load(
-        read_file(Path::new("test_data").join("query2.abi"))
+        read_file(Path::new("test_data").join("TestGroth16Verifier.abi"))
             .unwrap()
             .as_slice(),
     )
