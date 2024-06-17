@@ -597,8 +597,8 @@ contract Verifier {
     uint32 constant PI_QUERY_IDENTIFIER_OFFSET = PI_ERC20_RESULT_OFFSET + PACKED_U256_LEN * 8;
 
     // Supported query identifiers
-    uint8 constant QUERY_IDENTIFIER_NFT = 67;
-    uint8 constant QUERY_IDENTIFIER_ERC20 = 88;
+    uint256 constant QUERY_IDENTIFIER_NFT = 67;
+    uint256 constant QUERY_IDENTIFIER_ERC20 = 88;
 
     // The query struct used to check with the public inputs.
     struct Query {
@@ -609,6 +609,7 @@ contract Verifier {
         uint256 maxBlockNumber;
         bytes32 blockHash;
         uint256 rewardsRate;
+        uint256 identifier;
     }
 
     // This processQuery function does the followings:
@@ -617,8 +618,7 @@ contract Verifier {
     // 2. Parse the plonky2 public inputs from the `data` argument.
     // 3. Calculate sha256 on the inputs to a hash value, and set the top 3 bits of this hash to 0.
     //    Then asset this hash value must be equal to the last Groth16 input (groth16_inputs[2]).
-    // 4. Parse the query identifier from the plonky2 public inputs.
-    // 5. Parse a Query instance from the plonky2 public inputs, and asset it must be equal to the
+    // 4. Parse a Query instance from the plonky2 public inputs, and asset it must be equal to the
     //    expected `query` argument.
     // 5. Parse and return the query result from the plonky2 public inputs.
     function processQuery(bytes32[] calldata data, Query memory query) public view returns (uint256[] memory) {
@@ -631,14 +631,11 @@ contract Verifier {
         // 3. Ensure the hash of plonky2 public inputs must be equal to the last Groth16 input.
         verifyPlonky2Inputs(pis, groth16_inputs);
 
-        // 4. Parse the query identifier from the plonky2 public inputs.
-        uint8 identifier = parseQueryIdentifier(pis);
+        // 4. Asset the query in plonky2 public inputs must be equal to expected `query` argument.
+        verifyQuery(pis, query);
 
-        // 5. Asset the query in plonky2 public inputs must be equal to expected `query` argument.
-        verifyQuery(pis, identifier, query);
-
-        // 4. Parse and return the query result.
-        return parseQueryResult(pis, identifier);
+        // 5. Parse and return the query result.
+        return parseQueryResult(pis, query.identifier);
     }
 
     // Parse the Groth16 proofs and inputs, and do verification. It returns the Groth16 inputs.
@@ -697,7 +694,7 @@ contract Verifier {
     }
 
     // Verify the plonky2 inputs with the expected Query instance.
-    function verifyQuery(bytes memory pis, uint8 identifier, Query memory query) internal pure {
+    function verifyQuery(bytes memory pis, Query memory query) internal pure {
         uint32 minBlockNumber = convertToU32(pis, PI_MIN_BLOCK_NUM_OFFSET);
         require(
             minBlockNumber == query.minBlockNumber,
@@ -728,22 +725,22 @@ contract Verifier {
             "The parsed block hash must be equal to the expected one in query."
         );
 
-        if (identifier == QUERY_IDENTIFIER_ERC20) {
+        if (query.identifier == QUERY_IDENTIFIER_ERC20) {
             uint256 rewardsRate = convertByteSliceToU256(pis, PI_REWARDS_RATE_OFFSET);
             require(
                 rewardsRate == query.rewardsRate,
                 "The parsed rewards rate must be equal to the expected one in query."
             );
         }
-    }
 
-    // Parse the query identifier.
-    function parseQueryIdentifier(bytes memory pis) internal pure returns (uint8) {
-        return uint8(pis[PI_QUERY_IDENTIFIER_OFFSET]);
+        require(
+            uint256(uint8(pis[PI_QUERY_IDENTIFIER_OFFSET])) == query.identifier,
+            "The parsed identifier must be equal to the expected one in query."
+        );
     }
 
     // Parse the query result from the plonky2 public inputs.
-    function parseQueryResult(bytes memory pis, uint8 identifier) internal pure returns (uint256[] memory) {
+    function parseQueryResult(bytes memory pis, uint256 identifier) internal pure returns (uint256[] memory) {
         if (identifier == QUERY_IDENTIFIER_NFT) {
             return parseNftIds(pis);
         } else if (identifier == QUERY_IDENTIFIER_ERC20) {

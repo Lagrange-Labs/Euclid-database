@@ -71,6 +71,11 @@
             "internalType": "uint256",
             "name": "rewardsRate",
             "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "identifier",
+            "type": "uint256"
           }
         ],
         "internalType": "struct Query2.Query",

@@ -1,5 +1,6 @@
 //! Test the Groth16 proving process for the queries.
 
+use crate::common::{QUERY_IDENTIFIER_ERC20, QUERY_IDENTIFIER_NFT};
 use common::{TestContext, TestQuery, TestQueryResult, L};
 use ethers::{
     abi::{Contract, Token},
@@ -32,7 +33,7 @@ fn test_groth16_proving_for_queries() {
     const ASSET_DIR: &str = "groth16_queries";
 
     // Create the test query and context.
-    let query = TestQuery::new();
+    let mut query = TestQuery::new();
     let ctx = TestContext::<BLOCK_DB_DEPTH>::new();
 
     // Generate the Groth16 asset files.
@@ -42,11 +43,13 @@ fn test_groth16_proving_for_queries() {
     let block_db_proof = ctx.generate_block_db_proof(&query);
 
     // Generate the NFT query proof and do verification.
+    query.identifier = QUERY_IDENTIFIER_NFT;
     let proof = ctx.generate_nft_query_proof(ASSET_DIR, &query, &block_db_proof, &TEST_NFT_IDS);
     test_groth16_proving_and_verification(ASSET_DIR, &proof);
     verify_query2_solidity_fun(ASSET_DIR, &query, TestQueryResult::NftIds(TEST_NFT_IDS));
 
     // Generate the ERC20 query proof and do verification.
+    query.identifier = QUERY_IDENTIFIER_ERC20;
     let proof =
         ctx.generate_erc20_query_proof(ASSET_DIR, &query, &block_db_proof, TEST_ERC20_RESULT);
     test_groth16_proving_and_verification(ASSET_DIR, &proof);
@@ -93,6 +96,7 @@ fn verify_query2_solidity_fun(asset_dir: &str, query: &TestQuery, query_result: 
         Token::Uint(query.max_block_number.into()),
         Token::FixedBytes(block_hash_bytes),
         Token::Uint(query.rewards_rate),
+        Token::Uint(query.identifier.into()),
     ]);
 
     // Build the ABI encoded data.

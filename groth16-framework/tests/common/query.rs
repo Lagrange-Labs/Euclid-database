@@ -1,6 +1,6 @@
 //! Test query structs
 
-use super::L;
+use super::{L, QUERY_IDENTIFIER_NFT};
 use ethers::types::{Address, U256};
 use std::str::FromStr;
 
@@ -14,6 +14,7 @@ pub(crate) struct TestQuery {
     pub(crate) max_block_number: u32,
     pub(crate) block_hash: U256,
     pub(crate) rewards_rate: U256,
+    pub(crate) identifier: u8,
 }
 
 impl TestQuery {
@@ -32,6 +33,7 @@ impl TestQuery {
                 164, 70, 74, 21, 84, 190, 107, 170, 77, 180, 48, 171, 56, 194, 78,
             ]),
             rewards_rate: 2.into(),
+            identifier: QUERY_IDENTIFIER_NFT,
         }
     }
 }
