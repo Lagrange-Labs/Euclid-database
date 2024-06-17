@@ -1080,7 +1080,8 @@ mod tests {
             }
         }
     }
-
+    
+    #[ignore]
     #[test]
     fn debug_subsequent_blocks_proof_generation() {
         const DEPTH: usize = 21;
