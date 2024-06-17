@@ -233,7 +233,7 @@ impl<const MAX_DEPTH: usize, F: RichField> StateCircuit<MAX_DEPTH, F> {
         // make sure we always assign all the potential values
         // the depth is handled in the "self.depth" assignement above.
         let mut siblings = self.siblings.clone();
-        siblings.resize(MAX_DEPTH, self.siblings.last().cloned().unwrap());
+        siblings.resize(MAX_DEPTH, HashOut::default());
         let mut positions = self.positions.clone();
         positions.resize(MAX_DEPTH, false);
         wires

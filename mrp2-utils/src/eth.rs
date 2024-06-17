@@ -323,7 +323,7 @@ impl ProofQuery {
         );
         // key must be valid, proof must be valid and value must exist
         if is_valid.is_err() {
-            bail!("proof is not valid");
+            bail!("JSON RPC proof is not valid");
         }
         if let Some(ext_value) = is_valid.unwrap() {
             Ok(ext_value)

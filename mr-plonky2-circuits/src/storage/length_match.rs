@@ -34,7 +34,7 @@ use recursion_framework::framework::{
 use serde::{Deserialize, Serialize};
 use std::array;
 
-const MAGIC_SLOT: usize = 0x123456789;
+pub const MAGIC_SLOT: u8 = u8::MAX;
 /// This is a wrapper around an array of targets set as public inputs of any
 /// proof generated in this module. They all share the same structure.
 /// `D` Digest of the all mapping values
@@ -139,7 +139,7 @@ impl LengthMatchCircuit {
         let length_value = length_pi.length_value();
         let n = mapping_pi.n();
         let length_equal = cb.is_equal(length_value, n);
-        let magic_slot = cb.constant(GoldilocksField::from_canonical_usize(MAGIC_SLOT));
+        let magic_slot = cb.constant(GoldilocksField::from_canonical_u8(MAGIC_SLOT));
         let should_be_true = cb.select(skip_equal, true_.target, length_equal.target);
         cb.connect(should_be_true, true_.target);
 
@@ -217,12 +217,14 @@ impl Parameters {
         mapping_circuit_set: &RecursiveCircuits<F, C, D>,
         mapping_proof: &ProofWithVK,
         length_proof: &ProofWithPublicInputs<F, C, D>,
+        // This boolean is saying that the length match enforcing rule will not be
+        // performed if this flag is true. This is necessary in case we don't have a length slot
+        skip_match: bool,
     ) -> Result<Vec<u8>> {
         let mut pw = PartialWitness::<F>::new();
         // by default, we set to false, and then we change it for ERC20 query
         // to accept the flag as argument.
-        LengthMatchCircuit { skip_match: false }
-            .assign(&mut pw, self.length_match_wires.clone())?;
+        LengthMatchCircuit { skip_match }.assign(&mut pw, self.length_match_wires.clone())?;
         let (proof, vd) = mapping_proof.into();
         self.mapping_proof_wires
             .set_target(&mut pw, mapping_circuit_set, proof, vd)?;
@@ -241,26 +243,30 @@ impl Parameters {
 pub struct CircuitInput {
     mapping_proof: Vec<u8>,
     length_extract_proof: Vec<u8>,
+    skip_match: bool,
 }
 
 impl CircuitInput {
     /// Initialize `CircuitInput`
-    pub fn new(mapping_proof: Vec<u8>, length_extract_proof: Vec<u8>) -> Self {
+    pub fn new(mapping_proof: Vec<u8>, length_extract_proof: Vec<u8>, skip_match: bool) -> Self {
         Self {
             mapping_proof,
             length_extract_proof,
+            skip_match,
         }
     }
 }
-impl TryInto<(ProofWithVK, ProofWithPublicInputs<F, C, D>)> for CircuitInput {
+impl TryInto<(ProofWithVK, ProofWithPublicInputs<F, C, D>, bool)> for CircuitInput {
     type Error = anyhow::Error;
 
     fn try_into(
         self,
-    ) -> std::prelude::v1::Result<(ProofWithVK, ProofWithPublicInputs<F, C, D>), Self::Error> {
+    ) -> std::prelude::v1::Result<(ProofWithVK, ProofWithPublicInputs<F, C, D>, bool), Self::Error>
+    {
         Ok((
             ProofWithVK::deserialize(&self.mapping_proof)?,
             deserialize_proof(&self.length_extract_proof)?,
+            self.skip_match,
         ))
     }
 }
@@ -412,6 +418,7 @@ mod tests {
                 testing_framework.get_recursive_circuit_set(),
                 &mapping_proof,
                 &length_proof,
+                false,
             )
             .unwrap();
 

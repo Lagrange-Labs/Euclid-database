@@ -157,7 +157,8 @@ where
             .extract_array::<F, _, 4>(cb, offset)
             .into_vec(value_len)
             .normalize_left::<_, _, 4>(cb) // left_pad::<4>()
-            .reverse() // big endian to little endian
+            // BE to LE because of packing u8->u32 at next line expects LE format
+            .reverse()
             .convert_u8_to_u32(cb);
 
         let reduced_value = value[0];
