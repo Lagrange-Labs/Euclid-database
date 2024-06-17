@@ -10,7 +10,7 @@ use crate::{
     serialization::{
         circuit_data_serialization::SerializableRichField, FromBytes, SerializationError, ToBytes,
     },
-    utils::convert_u8_to_u32_slice,
+    utils::{convert_u8_to_u32_slice, ToFields},
 };
 use anyhow::{ensure, Result};
 use ethers::types::U256;
@@ -438,12 +438,8 @@ impl FromBytes for UInt256Target {
     }
 }
 
-trait ToFields {
-    fn to_targets<F: RichField>(&self) -> Vec<F>;
-}
-
 impl ToFields for U256 {
-    fn to_targets<F: RichField>(&self) -> Vec<F> {
+    fn to_fields<F: RichField>(&self) -> Vec<F> {
         let mut bytes = [0u8; 32];
         self.to_little_endian(&mut bytes);
         let limbs = convert_u8_to_u32_slice(&bytes);

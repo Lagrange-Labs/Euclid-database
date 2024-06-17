@@ -11,7 +11,6 @@ use mr_plonky2_circuits::{
     },
     utils::{Packer, ToFields},
 };
-use mrp2_utils::utils::convert_u256_to_u32_fields;
 use plonky2::{
     field::types::{Field, PrimeField64, Sample},
     hash::hash_types::HashOut,
@@ -57,8 +56,8 @@ impl<const BLOCK_DB_DEPTH: usize> TestContext<BLOCK_DB_DEPTH> {
                 .unwrap(),
             mapping_slot,
             length_slot,
-            &convert_u256_to_u32_fields(query_result),
-            &convert_u256_to_u32_fields(query.rewards_rate),
+            &query_result.to_fields().try_into().unwrap(),
+            &query.rewards_rate.to_fields().try_into().unwrap(),
         );
         let query_proof = self.erc_circuits.generate_input_proofs([pi]).unwrap();
         let query_vk = self.erc_circuits.verifier_data_for_input_proofs::<1>();

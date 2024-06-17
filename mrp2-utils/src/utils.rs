@@ -101,13 +101,6 @@ pub fn convert_u32_fields_to_u256<F: RichField>(fields: &[F]) -> U256 {
     U256::from_little_endian(&bytes)
 }
 
-/// Convert an `U256` to a slice of field elements, each representing a 32-bit integer limb.
-pub fn convert_u256_to_u32_fields<F: RichField>(u: U256) -> [F; NUM_LIMBS] {
-    let mut bytes = [0; 32];
-    u.to_little_endian(&mut bytes);
-    convert_u8_slice_to_u32_fields(&bytes).try_into().unwrap()
-}
-
 pub(crate) fn convert_u8_values_to_u32<F: RichField>(values: &[F]) -> Vec<F> {
     assert!(values.len() % 4 == 0);
 
