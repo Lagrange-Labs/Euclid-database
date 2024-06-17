@@ -33,9 +33,10 @@ impl<const BLOCK_DB_DEPTH: usize> TestContext<BLOCK_DB_DEPTH> {
     ) -> Vec<u8> {
         // Generate a fake NFT query proof.
         let block_db_pi = BlockDbPublicInputs::<F>::from(&block_db_proof.public_inputs);
-        let query_max_number = block_db_pi.block_number_data() - F::ONE;
-        let query_range = F::from_canonical_usize(10);
-        let query_min_number = query_max_number - query_range + F::ONE;
+        let query_max_number = F::from_canonical_u32(query.max_block_number);
+        let query_min_number = F::from_canonical_u32(query.min_block_number);
+        let query_range =
+            F::from_canonical_u32(query.max_block_number - query.min_block_number + 1);
         let query_root = HashOut {
             elements: block_db_pi.root_data().try_into().unwrap(),
         };
