@@ -21,7 +21,7 @@ const BLOCK_DB_DEPTH: usize = 2;
 const TEST_NFT_IDS: [u32; L] = [1, 2, 3, 4, 5];
 
 /// Test ERC20 query result
-const TEST_ERC20_RESULT: U256 = U256::one();
+const TEST_ERC20_RESULT: U256 = U256([1, 2, 3, 4]);
 
 /// Test proving for the query circuit.
 #[ignore] // Ignore for long running time in CI.

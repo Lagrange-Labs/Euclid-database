@@ -262,7 +262,7 @@ contract Query2 is Verifier {
     function convertByteSliceToU256(bytes memory pis, uint32 offset) internal pure returns (uint256) {
         uint256 result;
         for (uint32 i = 0; i < 8 ; ++i) {
-            result |= uint256(convertToU32(pis, offset + i * 8));
+            result |= uint256(convertToU32(pis, offset + i * 8)) << (32 * i);
         }
 
         return result;
