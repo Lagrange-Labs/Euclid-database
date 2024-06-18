@@ -597,19 +597,19 @@ contract Verifier {
     uint32 constant PI_QUERY_IDENTIFIER_OFFSET = PI_ERC20_RESULT_OFFSET + PACKED_U256_LEN * 8;
 
     // Supported query identifiers
-    uint256 constant QUERY_IDENTIFIER_NFT = 67;
-    uint256 constant QUERY_IDENTIFIER_ERC20 = 88;
+    uint8 constant QUERY_IDENTIFIER_NFT = 67;
+    uint8 constant QUERY_IDENTIFIER_ERC20 = 88;
 
     // The query struct used to check with the public inputs.
     struct Query {
         address contractAddress;
+        uint96 minBlockNumber;
         address userAddress;
+        uint96 maxBlockNumber;
         address clientAddress;
-        uint256 minBlockNumber;
-        uint256 maxBlockNumber;
+        uint88 rewardsRate;
+        uint8 identifier;
         bytes32 blockHash;
-        uint256 rewardsRate;
-        uint256 identifier;
     }
 
     // This processQuery function does the followings:
@@ -734,13 +734,13 @@ contract Verifier {
         }
 
         require(
-            uint256(uint8(pis[PI_QUERY_IDENTIFIER_OFFSET])) == query.identifier,
+            uint8(pis[PI_QUERY_IDENTIFIER_OFFSET]) == query.identifier,
             "The parsed identifier must be equal to the expected one in query."
         );
     }
 
     // Parse the query result from the plonky2 public inputs.
-    function parseQueryResult(bytes memory pis, uint256 identifier) internal pure returns (uint256[] memory) {
+    function parseQueryResult(bytes memory pis, uint8 identifier) internal pure returns (uint256[] memory) {
         if (identifier == QUERY_IDENTIFIER_NFT) {
             return parseNftIds(pis);
         } else if (identifier == QUERY_IDENTIFIER_ERC20) {
