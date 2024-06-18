@@ -116,6 +116,6 @@ impl<const BLOCK_DB_DEPTH: usize> TestContext<BLOCK_DB_DEPTH> {
 /// Generate the test mapping keys.
 fn test_mapping_keys(nft_ids: &[u32]) -> Vec<[u8; MAPPING_KEY_LEN]> {
     (0..L)
-        .map(|i| left_pad::<MAPPING_KEY_LEN>(&nft_ids[i].to_le_bytes()))
+        .map(|i| left_pad::<MAPPING_KEY_LEN>(&nft_ids[i].to_be_bytes()))
         .collect()
 }
