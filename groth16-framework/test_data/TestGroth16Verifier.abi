@@ -43,9 +43,19 @@
             "type": "address"
           },
           {
+            "internalType": "uint96",
+            "name": "minBlockNumber",
+            "type": "uint96"
+          },
+          {
             "internalType": "address",
             "name": "userAddress",
             "type": "address"
+          },
+          {
+            "internalType": "uint96",
+            "name": "maxBlockNumber",
+            "type": "uint96"
           },
           {
             "internalType": "address",
@@ -53,32 +63,22 @@
             "type": "address"
           },
           {
-            "internalType": "uint256",
-            "name": "minBlockNumber",
-            "type": "uint256"
+            "internalType": "uint88",
+            "name": "rewardsRate",
+            "type": "uint88"
           },
           {
-            "internalType": "uint256",
-            "name": "maxBlockNumber",
-            "type": "uint256"
+            "internalType": "uint8",
+            "name": "identifier",
+            "type": "uint8"
           },
           {
             "internalType": "bytes32",
             "name": "blockHash",
             "type": "bytes32"
-          },
-          {
-            "internalType": "uint256",
-            "name": "rewardsRate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "identifier",
-            "type": "uint256"
           }
         ],
-        "internalType": "struct Query2.Query",
+        "internalType": "struct Verifier.Query",
         "name": "query",
         "type": "tuple"
       }

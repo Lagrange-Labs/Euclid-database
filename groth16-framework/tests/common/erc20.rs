@@ -58,7 +58,10 @@ impl<const BLOCK_DB_DEPTH: usize> TestContext<BLOCK_DB_DEPTH> {
             mapping_slot,
             length_slot,
             &query_result.to_fields().try_into().unwrap(),
-            &query.rewards_rate.to_fields().try_into().unwrap(),
+            &U256::from(query.rewards_rate)
+                .to_fields()
+                .try_into()
+                .unwrap(),
         );
         let query_proof = self.erc_circuits.generate_input_proofs([pi]).unwrap();
         let query_vk = self.erc_circuits.verifier_data_for_input_proofs::<1>();

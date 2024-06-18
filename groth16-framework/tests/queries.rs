@@ -90,13 +90,13 @@ fn verify_query2_solidity_fun(asset_dir: &str, query: &TestQuery, query_result: 
 
     let query = Token::Tuple(vec![
         Token::Address(query.contract_address),
-        Token::Address(query.user_address),
-        Token::Address(query.client_address),
         Token::Uint(query.min_block_number.into()),
+        Token::Address(query.user_address),
         Token::Uint(query.max_block_number.into()),
-        Token::FixedBytes(block_hash_bytes),
-        Token::Uint(query.rewards_rate),
+        Token::Address(query.client_address),
+        Token::Uint(query.rewards_rate.into()),
         Token::Uint(query.identifier.into()),
+        Token::FixedBytes(block_hash_bytes),
     ]);
 
     // Build the ABI encoded data.

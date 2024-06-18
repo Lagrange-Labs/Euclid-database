@@ -13,7 +13,8 @@ pub(crate) struct TestQuery {
     pub(crate) min_block_number: u32,
     pub(crate) max_block_number: u32,
     pub(crate) block_hash: U256,
-    pub(crate) rewards_rate: U256,
+    // Only for testing, since we use uint88 type in the verifier contract.
+    pub(crate) rewards_rate: u64,
     pub(crate) identifier: u8,
 }
 
@@ -32,7 +33,7 @@ impl TestQuery {
                 59, 29, 137, 127, 105, 222, 146, 7, 197, 154, 29, 147, 160, 158, 243, 163, 194,
                 164, 70, 74, 21, 84, 190, 107, 170, 77, 180, 48, 171, 56, 194, 78,
             ]),
-            rewards_rate: U256([2, 1, 0, 0]),
+            rewards_rate: 2000,
             identifier: QUERY_IDENTIFIER_NFT,
         }
     }
