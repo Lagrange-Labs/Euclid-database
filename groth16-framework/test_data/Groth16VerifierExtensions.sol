@@ -214,7 +214,7 @@ contract Query2 is Verifier {
     function parseNftIds(bytes memory pis) internal pure returns (uint256[] memory) {
         uint256[] memory nft_ids = new uint256[](L);
         for (uint32 i = 0; i < L; ++i) {
-            nft_ids[i] = uint256(convertToU32(pis, PI_NFT_IDS_OFFSET + i * 8));
+            nft_ids[i] = uint256(convertToLeftPaddingU32(pis, PI_NFT_IDS_OFFSET + i * 8));
         }
 
         return nft_ids;
