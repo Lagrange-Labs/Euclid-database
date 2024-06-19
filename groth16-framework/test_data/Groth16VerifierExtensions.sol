@@ -8,8 +8,11 @@ contract Query2 is Verifier {
     // byteLen(uint160) / 4
     uint32 constant PACKED_ADDRESS_LEN = 5;
 
-    // byteLen(uint256) / 4
+    // byteLen(bytes32) / 4
     uint32 constant PACKED_HASH_LEN = 8;
+
+    // byteLen(uint256) / 4
+    uint32 constant PACKED_U256_LEN = 8;
 
     // Top 3 bits mask.
     uint256 constant TOP_THREE_BIT_MASK = ~(uint256(7) << 253);
@@ -24,7 +27,7 @@ contract Query2 is Verifier {
     // The total length of the plonky2 public inputs. Each input value is
     // serialized as an uint64. It's related with both the full proof
     // serialization and the wrapped circuit code.
-    uint32 constant PI_TOTAL_LEN = (L + 24) * 8;
+    uint32 constant PI_TOTAL_LEN = (L + 41) * 8;
 
     // The min block number offset in the plonky2 public inputs.
     uint32 constant PI_MIN_BLOCK_NUM_OFFSET = 2 * 8;
@@ -44,13 +47,28 @@ contract Query2 is Verifier {
     // The block hash offset in the plonky2 public inputs.
     uint32 constant PI_BLOCK_HASH_OFFSET = PI_NFT_IDS_OFFSET + L * 8;
 
+    // The rewards rate offset in the plonky2 public inputs.
+    uint32 constant PI_REWARDS_RATE_OFFSET = PI_BLOCK_HASH_OFFSET + PACKED_U256_LEN * 8;
+
+    // The ERC20 result offset in the plonky2 public inputs.
+    uint32 constant PI_ERC20_RESULT_OFFSET = PI_REWARDS_RATE_OFFSET + PACKED_U256_LEN * 8;
+
+    // The query identifier offset in the plonky2 public inputs.
+    uint32 constant PI_QUERY_IDENTIFIER_OFFSET = PI_ERC20_RESULT_OFFSET + PACKED_U256_LEN * 8;
+
+    // Supported query identifiers
+    uint8 constant QUERY_IDENTIFIER_NFT = 67;
+    uint8 constant QUERY_IDENTIFIER_ERC20 = 88;
+
     // The query struct used to check with the public inputs.
     struct Query {
         address contractAddress;
+        uint96 minBlockNumber;
         address userAddress;
+        uint96 maxBlockNumber;
         address clientAddress;
-        uint256 minBlockNumber;
-        uint256 maxBlockNumber;
+        uint88 rewardsRate;
+        uint8 identifier;
         bytes32 blockHash;
     }
 
@@ -62,7 +80,7 @@ contract Query2 is Verifier {
     //    Then asset this hash value must be equal to the last Groth16 input (groth16_inputs[2]).
     // 4. Parse a Query instance from the plonky2 public inputs, and asset it must be equal to the
     //    expected `query` argument.
-    // 5. Parse and return `L` NFT IDs (uint32) from the plonky2 public inputs.
+    // 5. Parse and return the query result from the plonky2 public inputs.
     function processQuery(bytes32[] calldata data, Query memory query) public view returns (uint256[] memory) {
         // 1. Do Groth16 verification.
         uint256[3] memory groth16_inputs = verifyGroth16Proof(data);
@@ -70,14 +88,14 @@ contract Query2 is Verifier {
         // 2. Parse the plonky2 public inputs.
         bytes memory pis = parsePlonky2Inputs(data);
 
-        // 3. Assert the hash of plonky2 public inputs must be equal to the last Groth16 input.
+        // 3. Ensure the hash of plonky2 public inputs must be equal to the last Groth16 input.
         verifyPlonky2Inputs(pis, groth16_inputs);
 
-        // 3. Asset the query in plonky2 public inputs must be equal to expected `query` argument.
+        // 4. Asset the query in plonky2 public inputs must be equal to expected `query` argument.
         verifyQuery(pis, query);
 
-        // 4. Parse and return the NFT IDs.
-        return parseNftIds(pis);
+        // 5. Parse and return the query result.
+        return parseQueryResult(pis, query.identifier);
     }
 
     // Parse the Groth16 proofs and inputs, and do verification. It returns the Groth16 inputs.
@@ -86,10 +104,10 @@ contract Query2 is Verifier {
         uint256[3] memory inputs;
 
         for (uint32 i = 0; i < 8; ++i) {
-            proofs[i] = convertToU256(data[i]);
+            proofs[i] = convertBytes32ToU256(data[i]);
         }
         for (uint32 i = 0; i < 3; ++i) {
-            inputs[i] = convertToU256(data[i + 8]);
+            inputs[i] = convertBytes32ToU256(data[i + 8]);
         }
 
         // Require the sha256 hash equals to the last Groth16 input.
@@ -137,35 +155,59 @@ contract Query2 is Verifier {
 
     // Verify the plonky2 inputs with the expected Query instance.
     function verifyQuery(bytes memory pis, Query memory query) internal pure {
-        uint32 min_block_number = convertToU32(pis, PI_MIN_BLOCK_NUM_OFFSET);
+        uint32 minBlockNumber = convertToU32(pis, PI_MIN_BLOCK_NUM_OFFSET);
         require(
-            min_block_number == query.minBlockNumber,
+            minBlockNumber == query.minBlockNumber,
             "The parsed min block number must be equal to the expected one in query."
         );
 
-        uint32 max_block_number = convertToU32(pis, PI_MAX_BLOCK_NUM_OFFSET);
+        uint32 maxBlockNumber = convertToU32(pis, PI_MAX_BLOCK_NUM_OFFSET);
         require(
-            max_block_number == query.maxBlockNumber,
+            maxBlockNumber == query.maxBlockNumber,
             "The parsed max block number must be equal to the expected one in query."
         );
 
-        address contract_address = convertToAddress(pis, PI_CONTRACT_ADDR_OFFSET);
+        address contractAddress = convertToAddress(pis, PI_CONTRACT_ADDR_OFFSET);
         require(
-            contract_address == query.contractAddress,
+            contractAddress == query.contractAddress,
             "The parsed contract address must be equal to the expected one in query."
         );
 
-        address user_address = convertToAddress(pis, PI_USER_ADDR_OFFSET);
+        address userAddress = convertToAddress(pis, PI_USER_ADDR_OFFSET);
         require(
-            user_address == query.userAddress,
+            userAddress == query.userAddress,
             "The parsed user address must be equal to the expected one in query."
         );
 
-        bytes32 block_hash = convertToHash(pis, PI_BLOCK_HASH_OFFSET);
+        bytes32 blockHash = bytes32(convertToHash(pis, PI_BLOCK_HASH_OFFSET));
         require(
-            block_hash == query.blockHash,
+            blockHash == query.blockHash,
             "The parsed block hash must be equal to the expected one in query."
         );
+
+        if (query.identifier == QUERY_IDENTIFIER_ERC20) {
+            uint256 rewardsRate = convertByteSliceToU256(pis, PI_REWARDS_RATE_OFFSET);
+            require(
+                rewardsRate == query.rewardsRate,
+                "The parsed rewards rate must be equal to the expected one in query."
+            );
+        }
+
+        require(
+            uint8(pis[PI_QUERY_IDENTIFIER_OFFSET]) == query.identifier,
+            "The parsed identifier must be equal to the expected one in query."
+        );
+    }
+
+    // Parse the query result from the plonky2 public inputs.
+    function parseQueryResult(bytes memory pis, uint8 identifier) internal pure returns (uint256[] memory) {
+        if (identifier == QUERY_IDENTIFIER_NFT) {
+            return parseNftIds(pis);
+        } else if (identifier == QUERY_IDENTIFIER_ERC20) {
+            return parseErc20Result(pis);
+        } else {
+            revert("Unsupported query identifier");
+        }
     }
 
     // Parse the `L` NFT IDs from the plonky2 public inputs.
@@ -178,12 +220,10 @@ contract Query2 is Verifier {
         return nft_ids;
     }
 
-    // Convert a bytes32 to an uint256.
-    function convertToU256(bytes32 b) internal pure returns (uint256) {
-        uint256 result;
-        for (uint32 i = 0; i < 32; i++) {
-            result |= uint256(uint8(b[i])) << (8 * i);
-        }
+    // Parse the ERC20 result from the plonky2 public inputs.
+    function parseErc20Result(bytes memory pis) internal pure returns (uint256[] memory) {
+        uint256[] memory result = new uint256[](1);
+        result[0] = convertByteSliceToU256(pis, PI_ERC20_RESULT_OFFSET);
 
         return result;
     }
@@ -203,6 +243,26 @@ contract Query2 is Verifier {
         uint32 result;
         for (uint32 i = 0; i < 4; ++i) {
             result |= uint32(uint8(data[i + offset])) << (8 * (3 - i));
+        }
+
+        return result;
+    }
+
+    // Convert a bytes32 to an uint256.
+    function convertBytes32ToU256(bytes32 b) internal pure returns (uint256) {
+        uint256 result;
+        for (uint32 i = 0; i < 32; i++) {
+            result |= uint256(uint8(b[i])) << (8 * i);
+        }
+
+        return result;
+    }
+
+    // Convert the specified byte slice to an uint256.
+    function convertByteSliceToU256(bytes memory pis, uint32 offset) internal pure returns (uint256) {
+        uint256 result;
+        for (uint32 i = 0; i < 8 ; ++i) {
+            result |= uint256(convertToU32(pis, offset + i * 8)) << (32 * i);
         }
 
         return result;
