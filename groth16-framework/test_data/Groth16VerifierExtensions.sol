@@ -91,11 +91,7 @@ contract Query2 is Verifier {
         // 3. Ensure the hash of plonky2 public inputs must be equal to the last Groth16 input.
         verifyPlonky2Inputs(pis, groth16_inputs);
 
-<<<<<<< HEAD:groth16-framework/test_data/Groth16VerifierExtensions.sol
         // 4. Asset the query in plonky2 public inputs must be equal to expected `query` argument.
-=======
-        // 3. Asset the query in plonky2 public inputs must be equal to the expected `query` argument.
->>>>>>> main:groth16-framework/test_data/query2.sol
         verifyQuery(pis, query);
 
         // 5. Parse and return the query result.
@@ -154,7 +150,10 @@ contract Query2 is Verifier {
         pis_hash = pis_hash & TOP_THREE_BIT_MASK;
 
         // Require the sha256 hash equals to the last Groth16 input.
-        require(pis_hash == groth16_inputs[2], "The plonky2 public inputs hash must be equal to the last of the Groth16 inputs");
+        require(
+            pis_hash == groth16_inputs[2],
+            "The plonky2 public inputs hash must be equal to the last of the Groth16 inputs"
+        );
     }
 
     // Verify the plonky2 inputs with the expected Query instance.
@@ -178,22 +177,15 @@ contract Query2 is Verifier {
         );
 
         address userAddress = convertToAddress(pis, PI_USER_ADDR_OFFSET);
-        require(
-            userAddress == query.userAddress,
-            "The parsed user address must be equal to the expected one in query."
-        );
+        require(userAddress == query.userAddress, "The parsed user address must be equal to the expected one in query.");
 
         bytes32 blockHash = bytes32(convertToHash(pis, PI_BLOCK_HASH_OFFSET));
-        require(
-            blockHash == query.blockHash,
-            "The parsed block hash must be equal to the expected one in query."
-        );
+        require(blockHash == query.blockHash, "The parsed block hash must be equal to the expected one in query.");
 
         if (query.identifier == QUERY_IDENTIFIER_ERC20) {
             uint256 rewardsRate = convertByteSliceToU256(pis, PI_REWARDS_RATE_OFFSET);
             require(
-                rewardsRate == query.rewardsRate,
-                "The parsed rewards rate must be equal to the expected one in query."
+                rewardsRate == query.rewardsRate, "The parsed rewards rate must be equal to the expected one in query."
             );
         }
 
@@ -265,7 +257,7 @@ contract Query2 is Verifier {
     // Convert the specified byte slice to an uint256.
     function convertByteSliceToU256(bytes memory pis, uint32 offset) internal pure returns (uint256) {
         uint256 result;
-        for (uint32 i = 0; i < 8 ; ++i) {
+        for (uint32 i = 0; i < 8; ++i) {
             result |= uint256(convertToU32(pis, offset + i * 8)) << (32 * i);
         }
 
