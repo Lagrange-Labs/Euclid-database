@@ -91,7 +91,11 @@ contract Query2 is Verifier {
         // 3. Ensure the hash of plonky2 public inputs must be equal to the last Groth16 input.
         verifyPlonky2Inputs(pis, groth16_inputs);
 
+<<<<<<< HEAD:groth16-framework/test_data/Groth16VerifierExtensions.sol
         // 4. Asset the query in plonky2 public inputs must be equal to expected `query` argument.
+=======
+        // 3. Asset the query in plonky2 public inputs must be equal to the expected `query` argument.
+>>>>>>> main:groth16-framework/test_data/query2.sol
         verifyQuery(pis, query);
 
         // 5. Parse and return the query result.
