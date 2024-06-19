@@ -97,7 +97,14 @@ impl LeafCircuit {
         // That's a hack to allow to still have a proof when a user is not included in a block since non membership
         // proofs will be supported only in v1.
         let final_output = b.select_u256(are_addresses_equal, &res, &zero_u256);
-        PublicInputs::<GoldilocksField>::register(b, &c, &address, &final_output, &rewards_rate);
+        PublicInputs::<GoldilocksField>::register(
+            b,
+            &c,
+            // always output the query address anyway, but just value = 0 if query_address != user_address
+            &query_address,
+            &final_output,
+            &rewards_rate,
+        );
 
         LeafWires {
             address,
