@@ -7,7 +7,7 @@ use revm::{
     InMemoryDB, EVM,
 };
 
-/// Deploy contract and then call with calldata.
+/// Deploy the contract and then call with calldata.
 /// Return the gas_used and the output bytes of call to deployed contract if
 /// both transactions are successful.
 pub fn deploy_and_call(deployment_code: Vec<u8>, calldata: Vec<u8>) -> Result<(u64, Vec<u8>)> {
