@@ -17,15 +17,12 @@ use rand::{rngs::StdRng, RngCore, SeedableRng};
 use recursion_framework::framework_testing::TestingRecursiveCircuits;
 use serial_test::serial;
 
+use super::StateWires;
 use crate::{
     array::Array,
-    query2::{
-        block::BlockPublicInputs, storage::public_inputs::PublicInputs as StorageInputs,
-        PackedSCAddress,
-    },
+    query2::{block::BlockPublicInputs, storage::public_inputs::PublicInputs as StorageInputs},
 };
-
-use super::StateWires;
+use mrp2_utils::types::PackedSCAddress;
 
 /// Maximum depth we can support in the tests
 const MAX_TEST_DEPTH: usize = 5;

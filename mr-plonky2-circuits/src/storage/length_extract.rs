@@ -13,6 +13,9 @@ use crate::{
 };
 use anyhow::Result;
 use ethers::types::H160;
+use mrp2_utils::serialization::{
+    circuit_data_serialization::SerializableRichField, deserialize, serialize,
+};
 use plonky2::{
     field::extension::Extendable,
     hash::hash_types::RichField,
@@ -24,8 +27,6 @@ use plonky2::{
     },
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
-use recursion_framework::serialization::circuit_data_serialization::SerializableRichField;
-use recursion_framework::serialization::{deserialize, serialize};
 use serde::{Deserialize, Serialize};
 use std::array::{self};
 
@@ -156,7 +157,8 @@ where
             .extract_array::<F, _, 4>(cb, offset)
             .into_vec(value_len)
             .normalize_left::<_, _, 4>(cb) // left_pad::<4>()
-            .reverse() // big endian to little endian
+            // BE to LE because of packing u8->u32 at next line expects LE format
+            .reverse()
             .convert_u8_to_u32(cb);
 
         let reduced_value = value[0];

@@ -1,5 +1,6 @@
 use std::array::from_fn as create_array;
 
+use mrp2_utils::{types::PACKED_U256_LEN, u256};
 use plonky2::{
     field::goldilocks_field::GoldilocksField, iop::target::Target,
     plonk::circuit_builder::CircuitBuilder,
@@ -21,9 +22,11 @@ enum Inputs<const L: usize> {
     MappingSlotLength,
     NftIds,
     BlockHeader,
+    // Padded (2 * uint256) to make it uniform with the query-erc20 revelation public inputs
+    Padded512,
 }
 impl<const L: usize> Inputs<L> {
-    const SIZES: [usize; 10] = [
+    const SIZES: [usize; 11] = [
         // Block number
         1,
         // Range
@@ -44,6 +47,8 @@ impl<const L: usize> Inputs<L> {
         L,
         // Block Header
         OutputHash::LEN,
+        // Padded uint512
+        2 * u256::NUM_LIMBS,
     ];
 
     const fn total_len() -> usize {
@@ -57,6 +62,7 @@ impl<const L: usize> Inputs<L> {
             + Self::SIZES[7]
             + Self::SIZES[8]
             + Self::SIZES[9]
+            + Self::SIZES[10]
     }
 
     fn range(&self) -> std::ops::Range<usize> {
@@ -146,6 +152,9 @@ impl<'a, const L: usize> RevelationPublicInputs<'a, Target, L> {
             b.register_public_input(nft_id.0);
         }
         b.register_public_inputs(&lpn_latest_block.to_targets().arr);
+        // Register the 16 padded items (2 * uint256).
+        let zero = b.zero();
+        b.register_public_inputs(&[zero; 2 * u256::NUM_LIMBS]);
     }
 
     fn block_number(&self) -> Target {

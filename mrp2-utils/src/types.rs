@@ -1,6 +1,6 @@
 //! Custom types
 
-use crate::{array::Array, D};
+use crate::{array::Array, u256::NUM_LIMBS, D};
 use plonky2::{
     field::{extension::quintic::QuinticExtension, goldilocks_field::GoldilocksField},
     iop::target::Target,
@@ -37,6 +37,8 @@ pub type AddressTarget = Array<Target, ADDRESS_LEN>;
 /// U32 representation of an address
 pub type PackedAddressTarget = Array<U32Target, PACKED_ADDRESS_LEN>;
 
+pub const PACKED_U256_LEN: usize = NUM_LIMBS;
+
 /// The length of a mapping key in bytes
 pub const MAPPING_KEY_LEN: usize = 32;
 /// Length of a mapping key when packed in u32
@@ -64,3 +66,5 @@ pub const MAX_BLOCK_LEN: usize = 650;
 /// It is different than the `MAX_LEAF_VALUE_LEN` constant because it represents the
 /// value **not** RLP encoded,i.e. without the 1-byte RLP header.
 pub const MAPPING_LEAF_VALUE_LEN: usize = 32;
+
+pub type PackedSCAddress<F> = Array<F, PACKED_ADDRESS_LEN>;

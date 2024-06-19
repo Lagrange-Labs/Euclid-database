@@ -1,3 +1,6 @@
+use mrp2_utils::serialization::{
+    circuit_data_serialization::SerializableRichField, deserialize_array, serialize_array,
+};
 use plonky2::{
     hash::hash_types::HashOut,
     iop::{
@@ -18,9 +21,6 @@ use crate::{
         CircuitLogicWires, CircuitWithUniversalVerifier, CircuitWithUniversalVerifierBuilder,
     },
     framework::{RecursiveCircuitInfo, RecursiveCircuits},
-    serialization::{
-        circuit_data_serialization::SerializableRichField, deserialize_array, serialize_array,
-    },
 };
 
 use anyhow::Result;

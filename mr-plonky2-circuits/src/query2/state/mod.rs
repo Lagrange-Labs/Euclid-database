@@ -3,6 +3,7 @@ use std::iter;
 
 use ethers::types::Address;
 use itertools::Itertools;
+use mrp2_utils::serialization::{deserialize, serialize};
 use plonky2::{
     field::{goldilocks_field::GoldilocksField, types::Field},
     hash::{
@@ -23,7 +24,6 @@ use recursion_framework::{
     framework::{
         RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
     },
-    serialization::{deserialize, serialize},
 };
 use serde::{Deserialize, Serialize};
 
@@ -37,11 +37,9 @@ use crate::{
     utils::{Packer, ToFields},
 };
 
-use super::{
-    block::{BlockPublicInputs, BLOCK_CIRCUIT_SET_SIZE},
-    PackedSCAddress,
-};
+use super::block::{BlockPublicInputs, BLOCK_CIRCUIT_SET_SIZE};
 use anyhow::{bail, Result};
+use mrp2_utils::types::PackedSCAddress;
 
 #[cfg(test)]
 pub(crate) mod tests;

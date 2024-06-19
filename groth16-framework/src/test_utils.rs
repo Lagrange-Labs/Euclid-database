@@ -84,7 +84,7 @@ fn evm_verify(asset_dir: &str, proof: &Groth16Proof) {
         .to_string();
 
     let contract = Contract::load(
-        read_file(Path::new("test_data").join("query2.abi"))
+        read_file(Path::new("test_data").join("TestGroth16Verifier.abi"))
             .unwrap()
             .as_slice(),
     )

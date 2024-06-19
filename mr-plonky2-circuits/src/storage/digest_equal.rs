@@ -18,6 +18,7 @@ use crate::{
 };
 use anyhow::Result;
 use ethers::types::H256;
+use mrp2_utils::serialization::{deserialize, serialize};
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     hash::hash_types::{HashOutTarget, RichField, NUM_HASH_OUT_ELTS},
@@ -33,11 +34,8 @@ use plonky2::{
 };
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use plonky2_ecgfp5::gadgets::curve::{CircuitBuilderEcGFp5, CurveTarget};
-use recursion_framework::{
-    framework::{
-        RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
-    },
-    serialization::{deserialize, serialize},
+use recursion_framework::framework::{
+    RecursiveCircuits, RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
 };
 use serde::{Deserialize, Serialize};
 use std::array;
@@ -89,6 +87,11 @@ impl<'a> PublicInputs<'a, Target> {
     pub fn mpt_root(&self) -> OutputHash {
         let data = self.mpt_root_data();
         array::from_fn(|i| U32Target(data[i])).into()
+    }
+
+    pub fn merkle_root(&self) -> HashOutTarget {
+        let root = self.merkle_root_data();
+        HashOutTarget::from(std::array::from_fn(|i| root[i]))
     }
 }
 

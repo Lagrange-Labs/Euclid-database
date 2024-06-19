@@ -12,5 +12,3 @@ pub mod storage;
 pub use api::{CircuitInput, PublicParameters};
 #[cfg(test)]
 mod tests;
-
-pub(crate) type PackedSCAddress<F> = Array<F, PACKED_SC_ADDRESS_LEN>;

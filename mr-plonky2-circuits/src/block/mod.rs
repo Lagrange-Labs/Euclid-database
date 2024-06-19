@@ -16,6 +16,10 @@ use crate::{
     utils::{convert_u8_to_u32_slice, hash_two_to_one},
 };
 use anyhow::Result;
+use mrp2_utils::serialization::{
+    circuit_data_serialization::SerializableRichField, deserialize, deserialize_array, serialize,
+    serialize_array,
+};
 use plonky2::{
     field::{extension::Extendable, goldilocks_field::GoldilocksField, types::Field},
     hash::{
@@ -43,11 +47,8 @@ use recursion_framework::{
         prepare_recursive_circuit_for_circuit_set, RecursiveCircuits,
         RecursiveCircuitsVerifierGagdet, RecursiveCircuitsVerifierTarget,
     },
-    serialization::{
-        circuit_data_serialization::SerializableRichField, deserialize, deserialize_array,
-        serialize, serialize_array,
-    },
 };
+
 use serde::{Deserialize, Serialize};
 use std::array;
 
@@ -1089,8 +1090,8 @@ mod tests {
         */
         let merkle_path: Vec<HashOutput> = vec![
             [
-                232, 100, 218, 187, 253, 223, 210, 224, 176, 5, 206, 112, 119, 243, 86, 214, 210,
-                200, 143, 246, 240, 211, 231, 163, 201, 203, 182, 234, 31, 15, 80, 136,
+                254, 184, 136, 182, 130, 241, 252, 108, 84, 75, 95, 248, 226, 182, 3, 74, 83, 220,
+                48, 87, 135, 140, 41, 206, 85, 131, 158, 75, 90, 118, 152, 236,
             ],
             [
                 89, 179, 176, 108, 120, 169, 24, 60, 195, 70, 162, 100, 51, 94, 5, 196, 244, 8,
@@ -1173,13 +1174,13 @@ mod tests {
                 142, 145, 10, 61, 113, 251, 111, 202, 59, 121, 81, 159, 124,
             ],
             [
-                64, 20, 49, 108, 138, 114, 239, 215, 165, 138, 9, 104, 162, 176, 39, 116, 231, 24,
-                108, 111, 144, 191, 62, 244, 143, 211, 140, 239, 245, 40, 142, 162,
+                126, 17, 152, 1, 197, 135, 137, 179, 149, 22, 46, 115, 213, 19, 223, 88, 214, 87,
+                134, 248, 45, 218, 102, 226, 112, 33, 101, 137, 207, 233, 129, 47,
             ],
         ];
         let leaf_index = 1;
-        const LEAF_PROOF_FILENAME: &str = "../../5520714_state_proof";
-        const PREVIOUS_PROOF_FILE_NAME: &str = "../../5520713_block";
+        const LEAF_PROOF_FILENAME: &str = "debug/state_proof";
+        const PREVIOUS_PROOF_FILE_NAME: &str = "debug/prev_block";
 
         // compute inputs for the Block DB IVC circuit
         let root = merkle_path.last().unwrap();
@@ -1187,12 +1188,18 @@ mod tests {
         let siblings = merkle_path[..DEPTH].to_vec();
         let tree_circuit = BlockTreeCircuit::<F, DEPTH>::new(leaf_index, *root, siblings);
 
+        let leaf_filename = std::env::current_dir().unwrap().join(LEAF_PROOF_FILENAME);
+        let previous_filename = std::env::current_dir()
+            .unwrap()
+            .join(PREVIOUS_PROOF_FILE_NAME);
+        println!("leaf_filename {}", leaf_filename.display());
+        println!("previous_filename {}", previous_filename.display());
         // read proofs from files and extract public inputs
-        let new_leaf_proof = fs::read(LEAF_PROOF_FILENAME).unwrap();
+        let new_leaf_proof = fs::read(leaf_filename).unwrap();
         let leaf_proof = ProofWithVK::deserialize(&new_leaf_proof).unwrap();
         let state_pubs = crate::state::lpn::api::Parameters::public_inputs(leaf_proof.proof());
 
-        let previous_proof = fs::read(PREVIOUS_PROOF_FILE_NAME).unwrap();
+        let previous_proof = fs::read(previous_filename).unwrap();
         let prev_proof = ProofWithVK::deserialize(&previous_proof).unwrap();
         type IvcCircuit =
             CircuitWithUniversalVerifier<F, C, D, 1, BlockTreeRecursiveWires<DEPTH, D>>;
